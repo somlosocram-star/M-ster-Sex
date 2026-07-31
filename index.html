@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0f">
+<title>El Máster</title>
+<link rel="manifest" href="manifest.json">
+<style>
+:root{
+  --bg:#0a0a0f; --bg2:#14141d; --txt:#e8e4da; --dim:#8a8578;
+  --accent:#b08442; --accent2:#7a5a2b; --danger:#8a2b2b;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:manipulation}
+input[type=text]{user-select:text;-webkit-user-select:text}
+html,body{height:100%;background:var(--bg);color:var(--txt);font-family:Georgia,'Times New Roman',serif;overflow:hidden}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+.screen{display:none;height:100dvh;flex-direction:column;align-items:center;justify-content:center;padding:24px;max-width:560px;margin:0 auto;overflow-y:auto}
+.screen.active{display:flex}
+h1{font-weight:normal;letter-spacing:.35em;font-size:1.4rem;text-transform:uppercase;color:var(--accent)}
+h2{font-weight:normal;font-size:1.05rem;color:var(--dim);letter-spacing:.15em;margin-bottom:20px;text-transform:uppercase}
+.btn{display:block;width:100%;max-width:320px;margin:10px auto;padding:16px;border:1px solid var(--accent2);border-radius:4px;color:var(--txt);font-size:1.05rem;letter-spacing:.1em;background:rgba(176,132,66,.08);transition:all .2s}
+.btn:active{background:rgba(176,132,66,.25);transform:scale(.98)}
+.btn.primary{border-color:var(--accent);background:rgba(176,132,66,.18)}
+.btn.ghost{border-color:#333;color:var(--dim)}
+input[type=text]{width:100%;max-width:320px;padding:14px;background:var(--bg2);border:1px solid #2a2a38;border-radius:4px;color:var(--txt);font-size:1.1rem;text-align:center;font-family:inherit;letter-spacing:.1em}
+input[type=text]:focus{outline:none;border-color:var(--accent)}
+/* Selección de máster */
+.masters{display:grid;grid-template-columns:1fr 1fr;gap:14px;width:100%;max-width:420px}
+.master-card{border:2px solid #2a2a38;border-radius:8px;overflow:hidden;position:relative;transition:all .25s;background:var(--bg2)}
+.master-card img{width:100%;aspect-ratio:3/4;object-fit:cover;display:block;filter:brightness(.75)}
+.master-card.sel{border-color:var(--accent);box-shadow:0 0 24px rgba(176,132,66,.35)}
+.master-card.sel img{filter:brightness(1)}
+.master-card .mname{position:absolute;bottom:0;left:0;right:0;padding:10px;background:linear-gradient(transparent,rgba(0,0,0,.9));font-size:.95rem;letter-spacing:.2em;text-transform:uppercase;text-align:center}
+.master-card .mdesc{font-size:.75rem;color:var(--dim);letter-spacing:.05em;text-transform:none}
+/* Inventario */
+.chips{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:14px 0 22px}
+.chip{padding:10px 16px;border:1px solid #2a2a38;border-radius:24px;font-size:.95rem;color:var(--dim);transition:all .15s;background:var(--bg2)}
+.chip.on{border-color:var(--accent);color:var(--txt);background:rgba(176,132,66,.15)}
+.persona-label{font-size:.8rem;color:var(--accent);letter-spacing:.25em;text-transform:uppercase;margin-top:8px}
+/* Sesión */
+#screen-game{justify-content:flex-start;padding-top:0}
+.g-header{width:100%;display:flex;align-items:center;gap:14px;padding:18px 0 8px;border-bottom:1px solid #22222e}
+.g-header img{width:52px;height:68px;object-fit:cover;border-radius:4px;border:1px solid var(--accent2)}
+.g-header .g-mname{font-size:.85rem;letter-spacing:.25em;text-transform:uppercase;color:var(--accent)}
+.level-dots{display:flex;gap:7px;margin-top:6px}
+.dot{width:9px;height:9px;border-radius:50%;background:#2a2a38}
+.dot.on{background:var(--accent);box-shadow:0 0 8px rgba(176,132,66,.6)}
+.g-body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;padding:16px 0}
+#order-text{font-size:1.5rem;line-height:1.55;text-align:center;max-width:440px;font-style:italic}
+#order-text .who{color:var(--accent);font-style:normal}
+/* Anillo cronómetro */
+.ring-wrap{position:relative;width:150px;height:150px;margin-top:36px}
+.ring-wrap svg{transform:rotate(-90deg)}
+.ring-bg{fill:none;stroke:#22222e;stroke-width:5}
+.ring-fg{fill:none;stroke:var(--accent);stroke-width:5;stroke-linecap:round;transition:stroke-dashoffset .5s linear}
+#ring-time{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:1.7rem;color:var(--txt)}
+.ring-wrap.hidden-ring svg,#ring-time{display:none}
+.ring-wrap.hidden-ring{display:none}
+#phase-msg{margin-top:22px;color:var(--dim);font-size:.9rem;letter-spacing:.2em;text-transform:uppercase;min-height:1.2em}
+.inv-state{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;padding:10px 0;border-top:1px solid #22222e;width:100%}
+.inv-state .st{font-size:.72rem;color:#55504a;letter-spacing:.1em}
+.g-controls{display:flex;gap:12px;width:100%;padding:14px 0 8px;justify-content:center}
+.ctl{flex:1;max-width:150px;padding:14px 0;border:1px solid #2a2a38;border-radius:6px;font-size:.9rem;letter-spacing:.08em;color:var(--txt);background:var(--bg2)}
+.ctl:active{background:#22222e}
+.ctl.panic{border-color:var(--danger);color:#c66}
+/* Transición a nivel */
+#screen-levelup{background:rgba(10,10,15,.97)}
+#levelup-text{font-size:1.35rem;font-style:italic;text-align:center;line-height:1.6;max-width:400px}
+/* Fin */
+.stat{color:var(--dim);margin:6px 0;font-size:1rem}
+.stat b{color:var(--accent);font-weight:normal}
+/* Pausa */
+#screen-pause{background:rgba(10,10,15,.97)}
+.hint{font-size:.75rem;color:#55504a;margin-top:16px;text-align:center;line-height:1.6}
+.fade{animation:fadein .6s ease}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+</style>
+</head>
+<body>
+
+<!-- INICIO -->
+<div class="screen active" id="screen-start">
+  <h1>El Máster</h1>
+  <h2 style="margin-top:10px">Un juego para dos</h2>
+  <p class="hint" style="max-width:300px;margin-bottom:30px">Él y ella. Una voz que dirige.<br>Cinco niveles. Ninguna prisa.</p>
+  <button class="btn primary" onclick="go('screen-master')">Comenzar</button>
+  <p class="hint">🔊 Sube el volumen. El Máster habla en voz alta.</p>
+</div>
+
+<!-- MÁSTER -->
+<div class="screen" id="screen-master">
+  <h1>Elige a tu Máster</h1>
+  <h2>Quién dirigirá esta noche</h2>
+  <div class="masters" id="masters-grid"></div>
+  <button class="btn primary" id="btn-master-next" style="margin-top:26px" onclick="go('screen-names')">Continuar</button>
+</div>
+
+<!-- NOMBRES -->
+<div class="screen" id="screen-names">
+  <h1>Los dos</h1>
+  <h2>Vuestros nombres</h2>
+  <p class="persona-label">Él</p>
+  <input type="text" id="name-e" placeholder="Su nombre" maxlength="15">
+  <p class="persona-label" style="margin-top:22px">Ella</p>
+  <input type="text" id="name-a" placeholder="Su nombre" maxlength="15">
+  <button class="btn primary" style="margin-top:30px" onclick="saveNames()">Continuar</button>
+</div>
+
+<!-- ROPA -->
+<div class="screen" id="screen-clothes">
+  <h1>El inventario</h1>
+  <h2>Qué lleváis puesto. El Máster lo usará.</h2>
+  <p class="persona-label" id="clothes-e-label">Él</p>
+  <div class="chips" id="chips-e"></div>
+  <p class="persona-label" id="clothes-a-label">Ella</p>
+  <div class="chips" id="chips-a"></div>
+  <button class="btn primary" onclick="saveClothes()">Continuar</button>
+</div>
+
+<!-- CONFIG -->
+<div class="screen" id="screen-config">
+  <h1>La sesión</h1>
+  <h2>Límites de esta noche</h2>
+  <p class="persona-label">Intensidad máxima</p>
+  <div class="chips" id="chips-maxlvl"></div>
+  <p class="persona-label">Voz del Máster</p>
+  <div class="chips" id="chips-voice"></div>
+  <button class="btn primary" style="margin-top:26px" onclick="startSession()">Que empiece el juego</button>
+</div>
+
+<!-- JUEGO -->
+<div class="screen" id="screen-game">
+  <div class="g-header">
+    <img id="g-avatar" src="" alt="">
+    <div>
+      <div class="g-mname" id="g-mname"></div>
+      <div class="level-dots" id="level-dots"></div>
+    </div>
+  </div>
+  <div class="g-body">
+    <div id="order-text" class="fade"></div>
+    <div class="ring-wrap" id="ring-wrap">
+      <svg width="150" height="150"><circle class="ring-bg" cx="75" cy="75" r="66"/><circle class="ring-fg" id="ring-fg" cx="75" cy="75" r="66" stroke-dasharray="414.7" stroke-dashoffset="0"/></svg>
+      <div id="ring-time"></div>
+    </div>
+    <div id="phase-msg"></div>
+  </div>
+  <div class="inv-state" id="inv-state"></div>
+  <div class="g-controls">
+    <button class="ctl" onclick="changeLevel(-1)">❄ Bajar</button>
+    <button class="ctl" onclick="changeLevel(1)">🔥 Subir</button>
+    <button class="ctl" onclick="skipOrder()">↻ Otra</button>
+    <button class="ctl panic" id="btn-pause">⏸ Pausa</button>
+  </div>
+  <p class="hint">Mantén ⏸ pulsado para pausar</p>
+</div>
+
+<!-- PAUSA -->
+<div class="screen" id="screen-pause">
+  <h1>Pausa</h1>
+  <p id="levelup-text" style="margin-top:24px">Respirad.<br>El juego os espera.</p>
+  <button class="btn primary" style="margin-top:40px" onclick="resumeSession()">Continuar</button>
+  <button class="btn ghost" onclick="endSession(true)">Terminar la sesión</button>
+</div>
+
+<!-- FIN -->
+<div class="screen" id="screen-end">
+  <h1>Fin de la sesión</h1>
+  <p id="levelup-text" style="margin:24px 0">«A partir de aquí… sois libres.»</p>
+  <div id="end-stats"></div>
+  <button class="btn primary" style="margin-top:30px" onclick="location.reload()">Nueva sesión</button>
+</div>
+
+<script>
+/* ============ DATOS ============ */
+const MASTERS = {
+  domina:   {name:'La Dómina', desc:'Autoritaria, sin concesiones', img:'img/domina.jpg',   pitch:1.0, rate:0.85,
+    intro:'Bien. Os tengo a los dos. Haréis exactamente lo que yo diga, cuando yo lo diga. Empecemos despacio… no os acostumbréis.',
+    up:['Interesante. Subamos un poco.','Veo que aguantáis. Más, entonces.','Bien. Se acabó el juego suave.'],
+    down:['De acuerdo. Bajemos el ritmo. Un poco.','Calma. Ya volveremos ahí.']},
+  elegante: {name:'La Elegante', desc:'Sofisticada y juguetona', img:'img/elegante.jpg', pitch:1.15, rate:0.98,
+    intro:'Qué pareja más encantadora. Esta noche os dirijo yo. Relajaos, saboreadlo… y dejaos llevar. Empecemos con algo suave.',
+    up:['Mmm… esto se pone interesante. Subamos.','Me encanta lo que veo. Un poco más, ¿no creéis?','Brindo por vosotros. Ahora, a por más.'],
+    down:['Calma, cariños. Saboreemos este punto.','Tranquilos. Lo bueno se hace esperar.']},
+  oscuro:   {name:'El Oscuro', desc:'Pocas palabras. Presencia', img:'img/oscuro.jpg',   pitch:0.65, rate:0.82,
+    intro:'Silencio. A partir de ahora, mando yo. Sin prisa. Sin escapatoria. Empezamos.',
+    up:['Más.','Subimos. No miréis atrás.','Esto no ha hecho más que empezar.'],
+    down:['Bajamos. Respirad.','Más lento. Ya llegaremos.']},
+  caballero:{name:'El Caballero', desc:'Educado en la forma, exigente en el fondo', img:'img/caballero.jpg', pitch:0.9, rate:0.95,
+    intro:'Buenas noches. Tengo el honor de dirigirles esta velada. Les prometo dos cosas: educación… y ninguna piedad. Comencemos con suavidad.',
+    up:['Excelente. Permítanme llevarles un paso más allá.','Admirable. Subamos un nivel, si son tan amables.','Muy bien. Ahora empieza lo divertido.'],
+    down:['Comprendo. Retrocedamos un paso, con gusto.','Calma. La elegancia también es saber esperar.']},
+};
+const GARMENTS = {
+  E:['Camisa','Camiseta','Cinturón','Pantalón','Calzoncillos','Calcetines'],
+  A:['Vestido','Blusa','Falda','Pantalón','Sujetador','Braguitas','Medias']
+};
+/* Órdenes: l=nivel, t=texto, d=segundos (0=auto por palabras), who, req=prendas necesarias, rem=prendas que caen tras la orden */
+const ORDERS=[
+ /* Nivel 1 — Tensión */
+ {l:1,t:'[E], di al oído de [A] tres cosas que piensas hacerle esta noche.',d:0},
+ {l:1,t:'[A], mira a [E] a los ojos sin apartar la mirada.',d:60},
+ {l:1,t:'[E], recorre la silueta de [A] con la mirada, despacio, de los pies a los ojos. Sin tocar.',d:30},
+ {l:1,t:'[A], acaricia con un dedo el labio inferior de [E]. Despacio.',d:20},
+ {l:1,t:'[E], descríbele a [A] la ropa interior que imaginas que lleva.',d:0},
+ {l:1,t:'Los dos: de pie, a un palmo de distancia. Está prohibido tocarse.',d:60},
+ {l:1,t:'[A], susurra a [E] qué es lo que más te gusta de su cuerpo.',d:0},
+ {l:1,t:'[E], retira un mechón de pelo de la cara de [A] y deja la mano en su mejilla.',d:20},
+ {l:1,t:'[A], camina alrededor de [E] despacio, una vuelta completa. Él no puede girarse.',d:40},
+ {l:1,t:'[E], acaricia la mano de [A] como si fuera la primera vez. Solo la mano.',d:45},
+ {l:1,t:'[A], di el nombre de [E] tres veces, cada vez más cerca de su oído.',d:0},
+ {l:1,t:'[E], besa la mano de [A]… y mantén los labios un segundo de más.',d:15},
+ {l:1,t:'[E], dile a [A] qué parte de su cuerpo besarías primero.',d:0},
+ {l:1,t:'Los dos: frente contra frente, respirando juntos.',d:30},
+ /* Nivel 2 — Contacto */
+ {l:2,t:'[E], besa el cuello de [A], del lóbulo a la clavícula. Despacio.',d:45},
+ {l:2,t:'[A], lame el lóbulo de la oreja de [E].',d:30},
+ {l:2,t:'[E], acaricia la espalda de [A] por encima de la ropa, de arriba abajo.',d:60},
+ {l:2,t:'[A], toca a [E] por encima del pantalón. Sin prisa.',d:60,req:{E:['Pantalón']}},
+ {l:2,t:'[E], desabrocha el primer botón de la ropa de [A]. Solo uno. Y bésale ahí.',d:30,req:{A:['Blusa']}},
+ {l:2,t:'[A], quítale a [E] la prenda superior. Con calma.',d:60,req:{E:['Camisa','Camiseta']},rem:{E:['Camisa','Camiseta']}},
+ {l:2,t:'[E], besa a [A] como si fuera el primer beso. Manos solo en su cara.',d:60},
+ {l:2,t:'[A], siéntate en el regazo de [E] de espaldas a él. Quieta.',d:45},
+ {l:2,t:'[E], pasa las manos por los muslos de [A], por encima de la ropa.',d:45,req:{A:['Falda','Pantalón','Vestido']}},
+ {l:2,t:'[A], mordisquea el cuello de [E].',d:30},
+ {l:2,t:'[E], abraza a [A] por la espalda y quédate quieto. Que sienta tu respiración.',d:60},
+ {l:2,t:'[A], quítale el cinturón a [E]. Lento.',d:30,req:{E:['Cinturón']},rem:{E:['Cinturón']}},
+ {l:2,t:'[E], dile al oído de [A] lo que notas al tocarla.',d:0},
+ {l:2,t:'[A], desabrocha despacio la camisa de [E] mientras le miras a los ojos.',d:60,req:{E:['Camisa']}},
+ /* Nivel 3 — Piel */
+ {l:3,t:'[E], desviste a [A] hasta dejarla en ropa interior. Cada prenda, un beso.',d:120,req:{A:['Vestido','Blusa','Falda']},rem:{A:['Vestido','Blusa','Falda','Pantalón']}},
+ {l:3,t:'[A], métete las manos por debajo de la camisa de [E] y recorre su pecho.',d:60,req:{E:['Camisa','Camiseta']}},
+ {l:3,t:'[E], besa el vientre de [A], bajando poco a poco… y para justo donde empieza la ropa interior.',d:60,req:{A:['Braguitas']}},
+ {l:3,t:'[A], toca a [E] por debajo de la ropa interior. Ritmo lento.',d:60,req:{E:['Calzoncillos']}},
+ {l:3,t:'[E], desabróchale el sujetador a [A] con una sola mano. Tienes un minuto.',d:60,req:{A:['Sujetador']},rem:{A:['Sujetador']}},
+ {l:3,t:'[A], recorre con los labios el torso desnudo de [E].',d:90},
+ {l:3,t:'[E], acaricia los pechos de [A] por encima del sujetador… luego por debajo.',d:90,req:{A:['Sujetador']}},
+ {l:3,t:'[A], siéntate de espaldas sobre [E] y muévete despacio.',d:60},
+ {l:3,t:'[E], masajea los hombros de [A] y baja por su espalda.',d:120},
+ {l:3,t:'[A], lame la clavícula de [E] y baja hasta el ombligo.',d:60},
+ {l:3,t:'[E], retira la ropa interior de [A]… con los dientes.',d:60,req:{A:['Braguitas']},rem:{A:['Braguitas']}},
+ {l:3,t:'[A], retira la ropa interior de [E]… sin usar las manos.',d:90,req:{E:['Calzoncillos']},rem:{E:['Calzoncillos']}},
+ {l:3,t:'[A], dile a [E], mirándole a los ojos, lo que quieres que te haga ahora.',d:0},
+ {l:3,t:'[E], besa a [A] en los labios mientras la tocas por debajo de la ropa interior.',d:60,req:{A:['Braguitas']}},
+ /* Nivel 4 — Fuego */
+ {l:4,t:'[E], cómele el coño a [A].',d:120},
+ {l:4,t:'[A], cómesela a [E]. Despacio, que dure.',d:120},
+ {l:4,t:'[E], masturba a [A] con los dedos, ritmo constante.',d:120},
+ {l:4,t:'[A], masturba a [E], lento, sin dejarle terminar.',d:120},
+ {l:4,t:'[E], ponte detrás de [A], desnudos, y recorre su cuerpo con las manos mientras le muerdes el cuello.',d:90},
+ {l:4,t:'[A], túmbate y abre las piernas. [E], solo mira durante medio minuto. Luego puedes tocar.',d:90},
+ {l:4,t:'[E], usa solo la lengua. Manos a la espalda.',d:90},
+ {l:4,t:'[A], cabalga sobre [E] sin penetración. Que lo sienta todo.',d:90},
+ {l:4,t:'[E], chupa los pezones de [A] mientras la tocas entre las piernas.',d:90},
+ {l:4,t:'[A], a cuatro patas. [E], bésale la espalda bajando, sin prisa.',d:90},
+ {l:4,t:'Los dos: estimulación mutua con las manos, mirándoos a los ojos.',d:120},
+ {l:4,t:'[E], elige una parte del cuerpo de [A] que nunca le hayas besado. Bésala.',d:60},
+ {l:4,t:'[A], gemíle al oído a [E] mientras él te toca.',d:60},
+ {l:4,t:'[A], guía la mano de [E] exactamente donde la quieres.',d:90},
+ /* Nivel 5 — Sin límites */
+ {l:5,t:'[E], penétrala. Despacio. Cada embestida, un segundo más lenta que la anterior.',d:120},
+ {l:5,t:'[A], encima tú. Tú marcas el ritmo. Él tiene las manos quietas.',d:120},
+ {l:5,t:'[E], desde detrás. Manos en sus caderas.',d:120},
+ {l:5,t:'Los dos: la posición que más os guste, pero mirándoos a los ojos.',d:120},
+ {l:5,t:'[E], para en seco. Quince segundos quieto dentro. Luego continúa.',d:75},
+ {l:5,t:'[A], dile a [E] exactamente cómo lo quieres. Él obedece.',d:120},
+ {l:5,t:'[E], el ritmo lo marco yo: lento… lento… rápido.',d:120},
+ {l:5,t:'Los dos: terminad juntos si podéis. Yo cuento atrás.',d:180},
+ {l:5,t:'[E], elige la última posición de la noche.',d:180},
+];
+const PAUSES=[
+ 'Los dos: respirad. Tres respiraciones profundas. Sin hablar.',
+ '[E], retírate a dos pasos y solo mira a [A].',
+ 'Silencio total. No os toquéis. Solo mirad.',
+ '[A], cierra los ojos. La siguiente orden es sorpresa.',
+];
+const LEVEL_NAMES=['Tensión','Contacto','Piel','Fuego','Sin límites'];
+
+/* ============ ESTADO ============ */
+let S={master:'domina',nameE:'Él',nameA:'Ella',inv:{E:new Set(GARMENTS.E.slice(0,4)),A:new Set(GARMENTS.A.slice(0,6))},
+  maxLvl:5,voiceOn:true,level:1,used:new Set(),ordersInLevel:0,total:0,paused:false,busy:false,startTime:0};
+let timerInt=null,voices=[];
+
+/* ============ NAVEGACIÓN ============ */
+function go(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active','fade');}
+
+/* ============ MÁSTER ============ */
+const grid=document.getElementById('masters-grid');
+Object.entries(MASTERS).forEach(([k,m])=>{
+  const c=document.createElement('button');c.className='master-card'+(k==='domina'?' sel':'');
+  c.innerHTML=`<img src="${m.img}" alt="${m.name}"><div class="mname">${m.name}<div class="mdesc">${m.desc}</div></div>`;
+  c.onclick=()=>{S.master=k;document.querySelectorAll('.master-card').forEach(x=>x.classList.remove('sel'));c.classList.add('sel');speakSample(k);};
+  grid.appendChild(c);
+});
+function speakSample(k){
+  const m=MASTERS[k];
+  const sample={domina:'De rodillas. Ahora.',elegante:'Vamos a divertirnos un poco, ¿no crees?',oscuro:'Silencio. Mando yo.',caballero:'Permítanme dirigirles esta noche.'}[k];
+  say(sample,k,true);
+}
+
+/* ============ NOMBRES ============ */
+function saveNames(){
+  S.nameE=document.getElementById('name-e').value.trim()||'Él';
+  S.nameA=document.getElementById('name-a').value.trim()||'Ella';
+  document.getElementById('clothes-e-label').textContent=S.nameE;
+  document.getElementById('clothes-a-label').textContent=S.nameA;
+  buildChips('chips-e',GARMENTS.E,S.inv.E);
+  buildChips('chips-a',GARMENTS.A,S.inv.A);
+  go('screen-clothes');
+}
+function buildChips(id,list,set){
+  const box=document.getElementById(id);box.innerHTML='';
+  list.forEach(g=>{
+    const b=document.createElement('button');b.className='chip'+(set.has(g)?' on':'');b.textContent=g;
+    b.onclick=()=>{set.has(g)?set.delete(g):set.add(g);b.classList.toggle('on');};
+    box.appendChild(b);
+  });
+}
+function saveClothes(){
+  // config: nivel máximo y voz
+  const ml=document.getElementById('chips-maxlvl');ml.innerHTML='';
+  [1,2,3,4,5].forEach(n=>{
+    const b=document.createElement('button');b.className='chip'+(n===S.maxLvl?' on':'');b.textContent=n+' · '+LEVEL_NAMES[n-1];
+    b.onclick=()=>{S.maxLvl=n;ml.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));b.classList.add('on');};
+    ml.appendChild(b);
+  });
+  const vc=document.getElementById('chips-voice');vc.innerHTML='';
+  [['Con voz',true],['Solo texto',false]].forEach(([label,val])=>{
+    const b=document.createElement('button');b.className='chip'+(val===S.voiceOn?' on':'');b.textContent=label;
+    b.onclick=()=>{S.voiceOn=val;vc.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));b.classList.add('on');};
+    vc.appendChild(b);
+  });
+  go('screen-config');
+}
+
+/* ============ VOZ ============ */
+let speechWatchdog=null;
+function loadVoices(){voices=speechSynthesis.getVoices();}
+if('speechSynthesis' in window){loadVoices();speechSynthesis.onvoiceschanged=loadVoices;}
+function pickVoice(){
+  if(!voices.length)loadVoices();
+  const es=voices.filter(v=>v.lang&&v.lang.toLowerCase().startsWith('es'));
+  return es.find(v=>/^es[-_]es/i.test(v.lang))||es.find(v=>/spain|españ/i.test(v.name))||es[0]||null;
+}
+/* Habla frase a frase: evita el corte de Chrome en textos largos y reanuda si se congela */
+function say(text,masterKey,force,cb){
+  if(!S.voiceOn&&!force){cb&&cb();return;}
+  if(!('speechSynthesis' in window)){cb&&cb();return;}
+  speechSynthesis.cancel();
+  const m=MASTERS[masterKey||S.master];
+  const v=pickVoice();
+  const chunks=text.match(/[^.!?…]+[.!?…]+["')\]]*\s*|[^.!?…]+$/g)||[text];
+  let idx=0,finished=false;
+  const done=()=>{if(finished)return;finished=true;clearInterval(speechWatchdog);cb&&cb();};
+  const speakNext=()=>{
+    if(idx>=chunks.length){done();return;}
+    const u=new SpeechSynthesisUtterance(chunks[idx++].trim());
+    u.lang='es-ES';if(v)u.voice=v;
+    u.pitch=m.pitch;u.rate=m.rate;u.volume=1;
+    u.onend=speakNext;
+    u.onerror=()=>{done();};
+    speechSynthesis.speak(u);
+  };
+  // Chrome bug: speechSynthesis se pausa solo; esto lo despierta
+  clearInterval(speechWatchdog);
+  speechWatchdog=setInterval(()=>{
+    if(!speechSynthesis.speaking&&!speechSynthesis.pending){done();return;}
+    if(speechSynthesis.paused)speechSynthesis.resume();
+  },1000);
+  // seguridad absoluta: si en X segundos no terminó, continuar el juego
+  const maxMs=Math.max(6000,text.length*130/m.rate);
+  setTimeout(done,maxMs);
+  speakNext();
+}
+
+/* ============ SESIÓN ============ */
+function startSession(){
+  const m=MASTERS[S.master];
+  document.getElementById('g-avatar').src=m.img;
+  document.getElementById('g-mname').textContent=m.name;
+  S.level=1;S.used=new Set();S.ordersInLevel=0;S.total=0;S.startTime=Date.now();S.paused=false;
+  renderDots();renderInv();
+  go('screen-game');
+  document.getElementById('order-text').textContent='';
+  if(S.voiceOn&&!('speechSynthesis' in window))
+    document.getElementById('phase-msg').textContent='⚠ voz no disponible en este navegador — modo texto';
+  else if(S.voiceOn&&!pickVoice())
+    document.getElementById('phase-msg').textContent='⚠ sin voz en español; usando voz por defecto del sistema';
+  else document.getElementById('phase-msg').textContent='';
+  setTimeout(()=>{say(m.intro,S.master,false,()=>setTimeout(nextOrder,1200));},600);
+}
+function renderDots(){
+  const d=document.getElementById('level-dots');d.innerHTML='';
+  for(let i=1;i<=5;i++){const s=document.createElement('div');s.className='dot'+(i<=S.level?' on':'');d.appendChild(s);}
+}
+function renderInv(){
+  const box=document.getElementById('inv-state');box.innerHTML='';
+  const line=(who,name)=>{
+    const items=[...S.inv[who]];
+    const st=document.createElement('div');st.className='st';
+    st.textContent=name+': '+(items.length?items.join(' · '):'desnud'+(who==='E'?'o':'a'));
+    box.appendChild(st);
+  };
+  line('E',S.nameE);line('A',S.nameA);
+}
+function reqOk(o){
+  for(const who of ['E','A']){
+    if(o.req&&o.req[who]){
+      const has=o.req[who].some(g=>S.inv[who].has(g));
+      if(!has)return false;
+    }
+  }
+  return true;
+}
+function pickOrder(){
+  let pool=ORDERS.map((o,i)=>({...o,i})).filter(o=>o.l===S.level&&!S.used.has(o.i)&&reqOk(o));
+  if(!pool.length){ // si el nivel se agotó, permitir repetir
+    pool=ORDERS.map((o,i)=>({...o,i})).filter(o=>o.l===S.level&&reqOk(o));
+  }
+  if(!pool.length)return null;
+  return pool[Math.floor(Math.random()*pool.length)];
+}
+function nextOrder(){
+  if(S.paused)return;
+  S.busy=true;
+  const o=pickOrder();
+  if(!o){changeLevel(1);setTimeout(nextOrder,2500);S.busy=false;return;}
+  S.used.add(o.i);S.total++;S.ordersInLevel++;
+  const text=fmt(o.t);
+  showOrder(text);
+  const sayText=fmtSpeak(o.t);
+  say(sayText,S.master,false,()=>{
+    // prendas que caen
+    if(o.rem){for(const who of ['E','A'])if(o.rem[who])o.rem[who].forEach(g=>S.inv[who].delete(g));renderInv();}
+    const dur=o.d>0?o.d:autoDur(o.t);
+    runTimer(dur,()=>{
+      hideTimer();
+      document.getElementById('phase-msg').textContent='';
+      S.busy=false;
+      // avance automático de nivel cada 4 órdenes
+      if(S.ordersInLevel>=4){
+        if(S.level>=S.maxLvl){endSession(false);return;}
+        S.level++;S.ordersInLevel=0;renderDots();
+        transitionPhrase(MASTERS[S.master].up,()=>setTimeout(nextOrder,1800));
+      }else{
+        // ocasionalmente una pausa de tensión (25%)
+        if(Math.random()<0.25&&S.total>2){
+          const p=PAUSES[Math.floor(Math.random()*PAUSES.length)];
+          showOrder(fmt(p));
+          say(fmtSpeak(p),S.master,false,()=>runTimer(18,()=>{hideTimer();setTimeout(nextOrder,800);}));
+        }else setTimeout(nextOrder,1500);
+      }
+    });
+  });
+}
+function transitionPhrase(arr,cb){
+  const p=arr[Math.floor(Math.random()*arr.length)];
+  document.getElementById('phase-msg').textContent=LEVEL_NAMES[S.level-1];
+  showOrder('<span style="color:var(--dim)">'+p+'</span>');
+  say(p,S.master,false,()=>setTimeout(cb,900));
+}
+function skipOrder(){
+  if(S.busy)return;
+  stopAll();
+  nextOrder();
+}
+function changeLevel(delta){
+  const nl=Math.min(Math.max(S.level+delta,1),S.maxLvl);
+  if(nl===S.level&&delta>0)return;
+  if(nl===S.level&&delta<0)return;
+  stopAll();
+  S.level=nl;S.ordersInLevel=0;renderDots();
+  transitionPhrase(delta>0?MASTERS[S.master].up:MASTERS[S.master].down,()=>setTimeout(nextOrder,1800));
+}
+function stopAll(){
+  if(timerInt){clearInterval(timerInt);timerInt=null;}
+  if('speechSynthesis' in window)speechSynthesis.cancel();
+  S.busy=false;
+}
+
+/* ============ UI SESIÓN ============ */
+function fmt(t){return t.replace(/\[E\]/g,'<span class="who">'+esc(S.nameE)+'</span>').replace(/\[A\]/g,'<span class="who">'+esc(S.nameA)+'</span>');}
+function fmtSpeak(t){return t.replace(/\[E\]/g,S.nameE).replace(/\[A\]/g,S.nameA).replace(/…/g,'... ');}
+function esc(s){return s.replace(/[<>&"]/g,'');}
+function showOrder(html){
+  const el=document.getElementById('order-text');
+  el.classList.remove('fade');void el.offsetWidth;
+  el.innerHTML=html;el.classList.add('fade');
+}
+function autoDur(t){const words=t.split(/\s+/).length;return Math.min(Math.max(words/2.2+5,10),30);}
+const CIRC=414.7;
+function runTimer(sec,done){
+  const wrap=document.getElementById('ring-wrap'),fg=document.getElementById('ring-fg'),tt=document.getElementById('ring-time');
+  wrap.classList.remove('hidden-ring');
+  let left=sec;tt.textContent=fmtTime(left);
+  fg.style.strokeDashoffset=0;
+  if(timerInt)clearInterval(timerInt);
+  const t0=Date.now();
+  timerInt=setInterval(()=>{
+    left=Math.max(0,sec-(Date.now()-t0)/1000);
+    tt.textContent=fmtTime(Math.ceil(left));
+    fg.style.strokeDashoffset=CIRC*(1-left/sec);
+    if(left<=0){clearInterval(timerInt);timerInt=null;done();}
+  },200);
+}
+function fmtTime(s){const m=Math.floor(s/60),r=s%60;return m>0?m+':'+String(r).padStart(2,'0'):r;}
+function hideTimer(){document.getElementById('ring-wrap').classList.add('hidden-ring');}
+
+/* ============ PAUSA / FIN ============ */
+let pressT=null;
+const bp=document.getElementById('btn-pause');
+bp.addEventListener('pointerdown',e=>{
+  e.preventDefault();
+  bp.style.background='rgba(138,43,43,.4)';
+  bp.textContent='⏸ Mantén…';
+  pressT=setTimeout(pauseSession,1500);
+});
+const cancelPress=()=>{clearTimeout(pressT);bp.style.background='';bp.textContent='⏸ Pausa';};
+bp.addEventListener('pointerup',cancelPress);
+bp.addEventListener('pointerleave',cancelPress);
+bp.addEventListener('pointercancel',cancelPress);
+function pauseSession(){S.paused=true;stopAll();go('screen-pause');}
+function resumeSession(){S.paused=false;go('screen-game');setTimeout(nextOrder,800);}
+function endSession(early){
+  stopAll();
+  if(!early)say(MASTERS[S.master].name==='La Dómina'?'Habéis terminado. Por hoy. A partir de aquí… sois libres.':'A partir de aquí… sois libres.',S.master,false,()=>{});
+  const mins=Math.round((Date.now()-S.startTime)/60000);
+  document.getElementById('end-stats').innerHTML=
+    `<div class="stat">Duración: <b>${mins} min</b></div>
+     <div class="stat">Órdenes cumplidas: <b>${S.total}</b></div>
+     <div class="stat">Nivel alcanzado: <b>${S.level} · ${LEVEL_NAMES[S.level-1]}</b></div>
+     <div class="stat">Máster: <b>${MASTERS[S.master].name}</b></div>`;
+  go('screen-end');
+}
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+document.addEventListener('contextmenu',e=>e.preventDefault());
+// desbloqueo de audio en iOS/Android al primer toque
+document.body.addEventListener('pointerdown',function unlock(){
+  if('speechSynthesis' in window){const u=new SpeechSynthesisUtterance(' ');u.volume=0;speechSynthesis.speak(u);}
+  document.body.removeEventListener('pointerdown',unlock);
+},{once:true});
+</script>
+</body>
+</html>
