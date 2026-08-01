@@ -91,7 +91,7 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
   <button class="btn ghost" id="btn-install" style="display:none">⬇ Instalar app</button>
   <p class="hint" id="install-hint" style="display:none"></p>
   <p class="hint">🔊 Sube el volumen. El Máster habla en voz alta.</p>
-  <p class="hint" style="margin-top:40px;letter-spacing:.2em;font-size:.65rem">EL MÁSTER v1.1</p>
+  <p class="hint" style="margin-top:40px;letter-spacing:.2em;font-size:.65rem">EL MÁSTER v1.3</p>
 </div>
 
 <!-- MÁSTER -->
@@ -408,17 +408,31 @@ function spriteParts(tpl,masterKey){
   if(!pushText(tpl.slice(last)))return null;
   return parts.length?parts:null;
 }
+let playGen=0; // generación: invalida reproducciones pendientes al parar
 function playSprite(parts,masterKey,cb){
   const mk=(S.voiceMode==='single')?'domina':masterKey;
   const url='voz-'+mk+'.mp3';
   if(!audioEl.src.endsWith(url))audioEl.src=url;
+  const gen=++playGen;
   let i=0;
   const next=()=>{
-    if(i>=parts.length){cb&&cb();return;}
+    if(gen!==playGen)return;
+    if(i>=parts.length){audioEl.pause();cb&&cb();return;} // pausa: sin esto el audio sigue rodando por el archivo
     const off=parts[i++];
-    try{audioEl.currentTime=off[0];}catch(e){}
-    playTimer=setTimeout(next,Math.max(300,(off[1]-off[0])*1000+80));
-    audioEl.play().catch(()=>{clearTimeout(playTimer);cb&&cb();});
+    const begin=Math.max(0,off[0]-0.07); // entra en el silencio previo: nunca corta la primera sílaba
+    const segMs=Math.max(300,(off[1]-begin)*1000+90);
+    let started=false;
+    const go=()=>{
+      if(started)return;started=true;
+      audioEl.removeEventListener('seeked',go);
+      clearTimeout(seekGuard);
+      if(gen!==playGen)return;
+      playTimer=setTimeout(next,segMs);
+      audioEl.play().catch(()=>{clearTimeout(playTimer);cb&&cb();});
+    };
+    audioEl.addEventListener('seeked',go);
+    const seekGuard=setTimeout(go,1500); // por si 'seeked' no llega
+    try{audioEl.currentTime=begin;}catch(e){go();}
   };
   next();
 }
@@ -578,6 +592,7 @@ function changeLevel(delta){
   transitionPhrase(delta>0?MASTERS[S.master].up:MASTERS[S.master].down,()=>setTimeout(nextOrder,1800));
 }
 function stopAll(){
+  playGen++; // invalida cualquier salto de audio pendiente
   if(timerInt){clearInterval(timerInt);timerInt=null;}
   if(playTimer){clearTimeout(playTimer);playTimer=null;}
   audioEl.pause();
@@ -646,7 +661,7 @@ function endSession(early){
   go('screen-end');
 }
 /* ============ ACTUALIZACIONES ============ */
-const APP_VERSION='1.1';
+const APP_VERSION='1.3';
 function showUpdateBanner(){
   let b=document.getElementById('update-banner');
   if(!b){
