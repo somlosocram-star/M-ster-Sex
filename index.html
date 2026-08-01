@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#0a0a0f">
 <title>El Máster</title>
 <link rel="manifest" href="manifest.json">
-<link rel="icon" type="image/png" href="img/icon-192.png">
+<link rel="icon" type="image/png" href="icon-192.png">
 <style>
 :root{
   --bg:#0a0a0f; --bg2:#14141d; --txt:#e8e4da; --dim:#8a8578;
@@ -90,7 +90,7 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
   <button class="btn ghost" id="btn-install" style="display:none">⬇ Instalar app</button>
   <p class="hint" id="install-hint" style="display:none"></p>
   <p class="hint">🔊 Sube el volumen. El Máster habla en voz alta.</p>
-  <p class="hint" style="margin-top:40px;letter-spacing:.2em;font-size:.65rem">EL MÁSTER v0.7</p>
+  <p class="hint" style="margin-top:40px;letter-spacing:.2em;font-size:.65rem">EL MÁSTER v0.8</p>
 </div>
 
 <!-- MÁSTER -->
@@ -292,10 +292,10 @@ let timerInt=null,voices=[];
 function go(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active','fade');}
 
 /* ============ MÁSTER ============ */
-/* Las imágenes pueden estar en img/ o en la raíz del repo */
+/* Las imágenes viven en la raíz (con img/ como respaldo) */
 function imgSrc(el,file){
-  el.src='img/'+file;
-  el.onerror=()=>{el.onerror=null;el.src=file;};
+  el.src=file;
+  el.onerror=()=>{el.onerror=null;el.src='img/'+file;};
 }
 const SAMPLES={domina:'De rodillas. Ahora.',elegante:'Vamos a divertirnos un poco, ¿no crees?',oscuro:'Silencio. Mando yo.',caballero:'Permítanme dirigirles esta noche.'};
 function speakSample(k){say(SAMPLES[k],k,true);}
