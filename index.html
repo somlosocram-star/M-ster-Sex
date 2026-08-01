@@ -35,6 +35,12 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
 .master-card .mname{position:absolute;bottom:0;left:0;right:0;padding:10px;background:linear-gradient(transparent,rgba(0,0,0,.9));font-size:.95rem;letter-spacing:.2em;text-transform:uppercase;text-align:center}
 .master-card .mdesc{font-size:.75rem;color:var(--dim);letter-spacing:.05em;text-transform:none}
 .vbtn{width:100%;padding:8px;font-size:.75rem;color:var(--accent);letter-spacing:.1em;border-top:1px solid #2a2a38;background:rgba(0,0,0,.4)}
+.vrow{border:1px solid #2a2a38;border-radius:6px;padding:10px 12px;margin:8px 0;background:var(--bg2)}
+.vrow .vname{font-size:.85rem;color:var(--txt);margin-bottom:8px}
+.vrow .vacts{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.vplay{padding:6px 12px;border:1px solid var(--accent2);border-radius:4px;color:var(--accent);font-size:.8rem}
+.vassign{padding:6px 9px;border:1px solid #2a2a38;border-radius:4px;color:var(--dim);font-size:.72rem}
+.vassign.on{border-color:var(--accent);color:var(--accent);background:rgba(176,132,66,.12)}
 /* Inventario */
 .chips{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:14px 0 22px}
 .chip{padding:10px 16px;border:1px solid #2a2a38;border-radius:24px;font-size:.95rem;color:var(--dim);transition:all .15s;background:var(--bg2)}
@@ -90,7 +96,7 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
   <button class="btn ghost" id="btn-install" style="display:none">⬇ Instalar app</button>
   <p class="hint" id="install-hint" style="display:none"></p>
   <p class="hint">🔊 Sube el volumen. El Máster habla en voz alta.</p>
-  <p class="hint" style="margin-top:40px;letter-spacing:.2em;font-size:.65rem">EL MÁSTER v0.8</p>
+  <p class="hint" style="margin-top:40px;letter-spacing:.2em;font-size:.65rem">EL MÁSTER v0.9</p>
 </div>
 
 <!-- MÁSTER -->
@@ -99,6 +105,8 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
   <h2>Quién dirigirá esta noche</h2>
   <div class="masters" id="masters-grid"></div>
   <p class="hint" id="voices-hint">🎙 Toca el botón de voz de cada Máster para probar y cambiar la suya</p>
+  <button class="btn ghost" id="btn-voicelab" style="max-width:420px">🎧 Probar todas las voces</button>
+  <div id="voicelab" style="display:none;width:100%;max-width:420px"></div>
   <button class="btn primary" id="btn-master-next" style="margin-top:20px" onclick="go('screen-names')">Continuar</button>
 </div>
 
@@ -345,6 +353,53 @@ function cycleVoice(k,ev){
   document.querySelectorAll('.vbtn')[Object.keys(MASTERS).indexOf(k)].textContent='🎙 '+shortName(esVoices[next]);
   say(SAMPLES[k],k,true);
 }
+/* ============ PROBADOR DE VOCES ============ */
+function sayWithVoice(text,voice,rate,pitch){
+  if(!('speechSynthesis' in window))return;
+  speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(text);
+  u.lang='es-ES';u.voice=voice;u.rate=rate||0.95;u.pitch=pitch||1;u.volume=1;
+  speechSynthesis.speak(u);
+}
+const MSHORT={domina:'Dómina',elegante:'Elegante',oscuro:'Oscuro',caballero:'Caball.'};
+function buildVoiceLab(){
+  refreshEsVoices();
+  const box=document.getElementById('voicelab');box.innerHTML='';
+  if(!esVoices.length){box.innerHTML='<p class="hint">Este navegador no tiene voces disponibles.</p>';return;}
+  const info=document.createElement('p');info.className='hint';
+  info.textContent=esVoices.length+' voces en español en este dispositivo. Escúchalas y asigna cada una a un Máster:';
+  box.appendChild(info);
+  esVoices.forEach((v,i)=>{
+    const row=document.createElement('div');row.className='vrow';
+    const nm=document.createElement('div');nm.className='vname';
+    nm.textContent=(i+1)+'. '+v.name+' ('+v.lang+')';
+    row.appendChild(nm);
+    const acts=document.createElement('div');acts.className='vacts';
+    const play=document.createElement('button');play.className='vplay';play.textContent='▶ Escuchar';
+    play.onclick=()=>sayWithVoice('Esta es mi voz. Te dirigiré esta noche.',v,0.95,1);
+    acts.appendChild(play);
+    Object.keys(MASTERS).forEach(k=>{
+      const a=document.createElement('button');a.className='vassign'+(voiceAssign[k]===v.voiceURI?' on':'');
+      a.textContent=MSHORT[k];
+      a.onclick=()=>{
+        voiceAssign[k]=v.voiceURI;
+        localStorage.setItem('elmaster_voices',JSON.stringify(voiceAssign));
+        buildVoiceLab();
+        document.querySelectorAll('.vbtn').forEach((b,j)=>{const kk=Object.keys(MASTERS)[j];if(kk)b.textContent=vbtnLabel(kk);});
+        sayWithVoice(SAMPLES[k],v,MASTERS[k].rate,MASTERS[k].pitch);
+      };
+      acts.appendChild(a);
+    });
+    row.appendChild(acts);
+    box.appendChild(row);
+  });
+}
+document.getElementById('btn-voicelab').onclick=()=>{
+  const box=document.getElementById('voicelab');
+  const open=box.style.display!=='none';
+  box.style.display=open?'none':'block';
+  if(!open)buildVoiceLab();
+};
 const grid=document.getElementById('masters-grid');
 Object.entries(MASTERS).forEach(([k,m])=>{
   const c=document.createElement('button');c.className='master-card'+(k==='domina'?' sel':'');
