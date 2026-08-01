@@ -1,8 +1,8 @@
 // EL MÁSTER — service worker
 // HTML: network-first (nunca sirve versiones viejas; GitHub Pages cachea ~10 min)
 // Estáticos: cache-first, con guardado perezoso
-const CACHE='elmaster-v12';
-const CORE=['./','index.html','manifest.json',
+const CACHE='elmaster-v14';
+const CORE=['./','index.html','manifest.json','voice-index.json',
   'domina.jpg','elegante.jpg','oscuro.jpg','caballero.jpg','icon-192.png','icon-512.png'];
 
 self.addEventListener('install',e=>{
