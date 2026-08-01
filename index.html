@@ -6,6 +6,7 @@
 <meta name="theme-color" content="#0a0a0f">
 <title>El Máster</title>
 <link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="img/icon-192.png">
 <style>
 :root{
   --bg:#0a0a0f; --bg2:#14141d; --txt:#e8e4da; --dim:#8a8578;
@@ -89,7 +90,7 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
   <button class="btn ghost" id="btn-install" style="display:none">⬇ Instalar app</button>
   <p class="hint" id="install-hint" style="display:none"></p>
   <p class="hint">🔊 Sube el volumen. El Máster habla en voz alta.</p>
-  <p class="hint" style="margin-top:40px;letter-spacing:.2em;font-size:.65rem">EL MÁSTER v0.6</p>
+  <p class="hint" style="margin-top:40px;letter-spacing:.2em;font-size:.65rem">EL MÁSTER v0.7</p>
 </div>
 
 <!-- MÁSTER -->
@@ -284,7 +285,7 @@ const LEVEL_NAMES=['Tensión','Contacto','Piel','Fuego','Sin límites'];
 
 /* ============ ESTADO ============ */
 let S={master:'domina',nameE:'Él',nameA:'Ella',inv:{E:new Set(GARMENTS.E.slice(0,4)),A:new Set(GARMENTS.A.slice(0,6))},
-  maxLvl:5,voiceOn:true,level:1,used:new Set(),ordersInLevel:0,total:0,paused:false,busy:false,startTime:0};
+  maxLvl:5,voiceMode:'multi',level:1,used:new Set(),ordersInLevel:0,total:0,paused:false,busy:false,startTime:0};
 let timerInt=null,voices=[];
 
 /* ============ NAVEGACIÓN ============ */
@@ -384,11 +385,14 @@ function saveClothes(){
     ml.appendChild(b);
   });
   const vc=document.getElementById('chips-voice');vc.innerHTML='';
-  [['Con voz',true],['Solo texto',false]].forEach(([label,val])=>{
-    const b=document.createElement('button');b.className='chip'+(val===S.voiceOn?' on':'');b.textContent=label;
-    b.onclick=()=>{S.voiceOn=val;vc.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));b.classList.add('on');};
+  [['Voz por Máster','multi'],['Una sola voz','single'],['Solo texto','off']].forEach(([label,val])=>{
+    const b=document.createElement('button');b.className='chip'+(val===S.voiceMode?' on':'');b.textContent=label;
+    b.onclick=()=>{S.voiceMode=val;vc.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));b.classList.add('on');};
     vc.appendChild(b);
   });
+  const vh=document.createElement('p');vh.className='hint';
+  vh.textContent='«Una sola voz» usa para todos la voz asignada a La Dómina';
+  vc.appendChild(vh);
   go('screen-config');
 }
 
@@ -403,12 +407,13 @@ function pickVoice(){
 }
 /* Habla frase a frase: evita el corte de Chrome en textos largos y reanuda si se congela */
 function say(text,masterKey,force,cb){
-  if(!S.voiceOn&&!force){cb&&cb();return;}
+  if(S.voiceMode==='off'&&!force){cb&&cb();return;}
   if(!('speechSynthesis' in window)){cb&&cb();return;}
   speechSynthesis.cancel();
   const m=MASTERS[masterKey||S.master];
   if(!esVoices.length)refreshEsVoices();
-  const v=esVoices[voiceIdx(masterKey||S.master)]||pickVoice();
+  const key=(S.voiceMode==='single')?'domina':(masterKey||S.master);
+  const v=esVoices[voiceIdx(key)]||pickVoice();
   const chunks=text.match(/[^.!?…]+[.!?…]+["')\]]*\s*|[^.!?…]+$/g)||[text];
   let idx=0,finished=false;
   const done=()=>{if(finished)return;finished=true;clearInterval(speechWatchdog);cb&&cb();};
@@ -442,9 +447,9 @@ function startSession(){
   renderDots();renderInv();
   go('screen-game');
   document.getElementById('order-text').textContent='';
-  if(S.voiceOn&&!('speechSynthesis' in window))
+  if(S.voiceMode!=='off'&&!('speechSynthesis' in window))
     document.getElementById('phase-msg').textContent='⚠ voz no disponible en este navegador — modo texto';
-  else if(S.voiceOn&&!pickVoice())
+  else if(S.voiceMode!=='off'&&!pickVoice())
     document.getElementById('phase-msg').textContent='⚠ sin voz en español; usando voz por defecto del sistema';
   else document.getElementById('phase-msg').textContent='';
   setTimeout(()=>{say(m.intro,S.master,false,()=>setTimeout(nextOrder,1200));},600);
@@ -603,29 +608,28 @@ document.addEventListener('contextmenu',e=>e.preventDefault());
 let deferredPrompt=null;
 const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
 const isInstalled=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
-window.addEventListener('beforeinstallprompt',e=>{
-  e.preventDefault();deferredPrompt=e;
-  if(!isInstalled())document.getElementById('btn-install').style.display='block';
-});
-document.getElementById('btn-install').onclick=async()=>{
-  if(!deferredPrompt)return;
-  deferredPrompt.prompt();await deferredPrompt.userChoice;
-  deferredPrompt=null;document.getElementById('btn-install').style.display='none';
-};
-if(isIOS&&!isInstalled()){
-  const h=document.getElementById('install-hint');
-  h.style.display='block';
-  h.innerHTML='📲 Para instalarla: botón <b>Compartir</b> → <b>«Añadir a pantalla de inicio»</b>';
-}else if(!isInstalled()){
-  /* Si Chrome no ofrece el evento automático, mostrar instrucciones manuales */
-  setTimeout(()=>{
-    if(!deferredPrompt){
-      const h=document.getElementById('install-hint');
-      h.style.display='block';
-      h.innerHTML='📲 Para instalarla: menú <b>⋮</b> del navegador (arriba a la derecha) → <b>«Instalar app»</b> o <b>«Añadir a pantalla de inicio»</b>';
-    }
-  },2500);
+const btnInstall=document.getElementById('btn-install');
+function refreshInstallUI(){
+  if(isInstalled()){btnInstall.style.display='none';return;}
+  btnInstall.style.display='block';
 }
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;refreshInstallUI();});
+window.addEventListener('appinstalled',()=>{btnInstall.style.display='none';deferredPrompt=null;});
+btnInstall.onclick=async()=>{
+  if(deferredPrompt){
+    deferredPrompt.prompt();
+    const r=await deferredPrompt.userChoice;
+    if(r.outcome==='accepted')btnInstall.style.display='none';
+    deferredPrompt=null;
+  }else{
+    const h=document.getElementById('install-hint');
+    h.style.display=h.style.display==='block'?'none':'block';
+    h.innerHTML=isIOS
+      ?'📲 En Safari: botón <b>Compartir</b> → <b>«Añadir a pantalla de inicio»</b>'
+      :'📲 Menú <b>⋮</b> del navegador (arriba a la derecha) → <b>«Instalar app»</b> o <b>«Añadir a pantalla de inicio»</b>';
+  }
+};
+refreshInstallUI();
 // desbloqueo de audio en iOS/Android al primer toque
 document.body.addEventListener('pointerdown',function unlock(){
   if('speechSynthesis' in window){const u=new SpeechSynthesisUtterance(' ');u.volume=0;speechSynthesis.speak(u);}
