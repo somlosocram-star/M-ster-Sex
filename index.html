@@ -89,7 +89,7 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
   <button class="btn ghost" id="btn-install" style="display:none">⬇ Instalar app</button>
   <p class="hint" id="install-hint" style="display:none"></p>
   <p class="hint">🔊 Sube el volumen. El Máster habla en voz alta.</p>
-  <p class="hint" style="margin-top:40px;letter-spacing:.2em;font-size:.65rem">EL MÁSTER v0.5</p>
+  <p class="hint" style="margin-top:40px;letter-spacing:.2em;font-size:.65rem">EL MÁSTER v0.6</p>
 </div>
 
 <!-- MÁSTER -->
@@ -97,7 +97,8 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
   <h1>Elige a tu Máster</h1>
   <h2>Quién dirigirá esta noche</h2>
   <div class="masters" id="masters-grid"></div>
-  <button class="btn primary" id="btn-master-next" style="margin-top:26px" onclick="go('screen-names')">Continuar</button>
+  <p class="hint" id="voices-hint">🎙 Toca el botón de voz de cada Máster para probar y cambiar la suya</p>
+  <button class="btn primary" id="btn-master-next" style="margin-top:20px" onclick="go('screen-names')">Continuar</button>
 </div>
 
 <!-- NOMBRES -->
@@ -187,11 +188,11 @@ const MASTERS = {
     intro:'Qué pareja más encantadora. Esta noche os dirijo yo. Relajaos, saboreadlo… y dejaos llevar. Empecemos con algo suave.',
     up:['Mmm… esto se pone interesante. Subamos.','Me encanta lo que veo. Un poco más, ¿no creéis?','Brindo por vosotros. Ahora, a por más.'],
     down:['Calma, cariños. Saboreemos este punto.','Tranquilos. Lo bueno se hace esperar.']},
-  oscuro:   {name:'El Oscuro', desc:'Pocas palabras. Presencia', img:'img/oscuro.jpg',   pitch:0.8, rate:0.85,
+  oscuro:   {name:'El Oscuro', desc:'Pocas palabras. Presencia', img:'img/oscuro.jpg',   pitch:0.75, rate:0.85,
     intro:'Silencio. A partir de ahora, mando yo. Sin prisa. Sin escapatoria. Empezamos.',
     up:['Más.','Subimos. No miréis atrás.','Esto no ha hecho más que empezar.'],
     down:['Bajamos. Respirad.','Más lento. Ya llegaremos.']},
-  caballero:{name:'El Caballero', desc:'Educado en la forma, exigente en el fondo', img:'img/caballero.jpg', pitch:0.9, rate:0.95,
+  caballero:{name:'El Caballero', desc:'Educado en la forma, exigente en el fondo', img:'img/caballero.jpg', pitch:0.85, rate:0.95,
     intro:'Buenas noches. Tengo el honor de dirigirles esta velada. Les prometo dos cosas: educación… y ninguna piedad. Comencemos con suavidad.',
     up:['Excelente. Permítanme llevarles un paso más allá.','Admirable. Subamos un nivel, si son tan amables.','Muy bien. Ahora empieza lo divertido.'],
     down:['Comprendo. Retrocedamos un paso, con gusto.','Calma. La elegancia también es saber esperar.']},
@@ -615,6 +616,15 @@ if(isIOS&&!isInstalled()){
   const h=document.getElementById('install-hint');
   h.style.display='block';
   h.innerHTML='📲 Para instalarla: botón <b>Compartir</b> → <b>«Añadir a pantalla de inicio»</b>';
+}else if(!isInstalled()){
+  /* Si Chrome no ofrece el evento automático, mostrar instrucciones manuales */
+  setTimeout(()=>{
+    if(!deferredPrompt){
+      const h=document.getElementById('install-hint');
+      h.style.display='block';
+      h.innerHTML='📲 Para instalarla: menú <b>⋮</b> del navegador (arriba a la derecha) → <b>«Instalar app»</b> o <b>«Añadir a pantalla de inicio»</b>';
+    }
+  },2500);
 }
 // desbloqueo de audio en iOS/Android al primer toque
 document.body.addEventListener('pointerdown',function unlock(){

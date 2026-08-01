@@ -1,5 +1,5 @@
-const CACHE='elmaster-v6';
-const IMGS=['domina.jpg','elegante.jpg','oscuro.jpg','caballero.jpg'];
+const CACHE='elmaster-v8';
+const IMGS=['domina.jpg','elegante.jpg','oscuro.jpg','caballero.jpg','icon-192.png','icon-512.png'];
 const ASSETS=['./','./index.html','./manifest.json',
   ...IMGS.map(f=>'./img/'+f),...IMGS.map(f=>'./'+f)];
 self.addEventListener('install',e=>{
