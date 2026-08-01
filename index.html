@@ -33,6 +33,7 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
 .master-card.sel img{filter:brightness(1)}
 .master-card .mname{position:absolute;bottom:0;left:0;right:0;padding:10px;background:linear-gradient(transparent,rgba(0,0,0,.9));font-size:.95rem;letter-spacing:.2em;text-transform:uppercase;text-align:center}
 .master-card .mdesc{font-size:.75rem;color:var(--dim);letter-spacing:.05em;text-transform:none}
+.vbtn{width:100%;padding:8px;font-size:.75rem;color:var(--accent);letter-spacing:.1em;border-top:1px solid #2a2a38;background:rgba(0,0,0,.4)}
 /* Inventario */
 .chips{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:14px 0 22px}
 .chip{padding:10px 16px;border:1px solid #2a2a38;border-radius:24px;font-size:.95rem;color:var(--dim);transition:all .15s;background:var(--bg2)}
@@ -85,8 +86,10 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
   <h2 style="margin-top:10px">Un juego para dos</h2>
   <p class="hint" style="max-width:300px;margin-bottom:30px">Él y ella. Una voz que dirige.<br>Cinco niveles. Ninguna prisa.</p>
   <button class="btn primary" onclick="go('screen-master')">Comenzar</button>
+  <button class="btn ghost" id="btn-install" style="display:none">⬇ Instalar app</button>
+  <p class="hint" id="install-hint" style="display:none"></p>
   <p class="hint">🔊 Sube el volumen. El Máster habla en voz alta.</p>
-  <p class="hint" style="margin-top:40px;letter-spacing:.2em;font-size:.65rem">EL MÁSTER v0.4</p>
+  <p class="hint" style="margin-top:40px;letter-spacing:.2em;font-size:.65rem">EL MÁSTER v0.5</p>
 </div>
 
 <!-- MÁSTER -->
@@ -180,11 +183,11 @@ const MASTERS = {
     intro:'Bien. Os tengo a los dos. Haréis exactamente lo que yo diga, cuando yo lo diga. Empecemos despacio… no os acostumbréis.',
     up:['Interesante. Subamos un poco.','Veo que aguantáis. Más, entonces.','Bien. Se acabó el juego suave.'],
     down:['De acuerdo. Bajemos el ritmo. Un poco.','Calma. Ya volveremos ahí.']},
-  elegante: {name:'La Elegante', desc:'Sofisticada y juguetona', img:'img/elegante.jpg', pitch:1.15, rate:0.98,
+  elegante: {name:'La Elegante', desc:'Sofisticada y juguetona', img:'img/elegante.jpg', pitch:1.05, rate:0.98,
     intro:'Qué pareja más encantadora. Esta noche os dirijo yo. Relajaos, saboreadlo… y dejaos llevar. Empecemos con algo suave.',
     up:['Mmm… esto se pone interesante. Subamos.','Me encanta lo que veo. Un poco más, ¿no creéis?','Brindo por vosotros. Ahora, a por más.'],
     down:['Calma, cariños. Saboreemos este punto.','Tranquilos. Lo bueno se hace esperar.']},
-  oscuro:   {name:'El Oscuro', desc:'Pocas palabras. Presencia', img:'img/oscuro.jpg',   pitch:0.65, rate:0.82,
+  oscuro:   {name:'El Oscuro', desc:'Pocas palabras. Presencia', img:'img/oscuro.jpg',   pitch:0.8, rate:0.85,
     intro:'Silencio. A partir de ahora, mando yo. Sin prisa. Sin escapatoria. Empezamos.',
     up:['Más.','Subimos. No miréis atrás.','Esto no ha hecho más que empezar.'],
     down:['Bajamos. Respirad.','Más lento. Ya llegaremos.']},
@@ -292,20 +295,66 @@ function imgSrc(el,file){
   el.src='img/'+file;
   el.onerror=()=>{el.onerror=null;el.src=file;};
 }
+const SAMPLES={domina:'De rodillas. Ahora.',elegante:'Vamos a divertirnos un poco, ¿no crees?',oscuro:'Silencio. Mando yo.',caballero:'Permítanme dirigirles esta noche.'};
+function speakSample(k){say(SAMPLES[k],k,true);}
+/* Voces en español disponibles en el dispositivo */
+let esVoices=[];
+function refreshEsVoices(){
+  loadVoices();
+  esVoices=voices.filter(v=>v.lang&&v.lang.toLowerCase().startsWith('es'));
+  if(!esVoices.length)esVoices=voices.slice();
+}
+if('speechSynthesis' in window){
+  refreshEsVoices();
+  speechSynthesis.onvoiceschanged=()=>{
+    refreshEsVoices();
+    const keys=Object.keys(MASTERS);
+    document.querySelectorAll('.vbtn').forEach((b,i)=>{if(keys[i])b.textContent=vbtnLabel(keys[i]);});
+  };
+}
+/* Asignación de voz por máster: por identificador estable (voiceURI), persistente */
+const voiceAssign=JSON.parse(localStorage.getItem('elmaster_voices')||'{}');
+function shortName(v){
+  return (v.name||'Voz').replace(/Microsoft |Google /gi,'').replace(/\s*[-–]\s*Spanish.*$/i,'').trim().slice(0,18);
+}
+function voiceIdx(k){
+  if(voiceAssign[k]){
+    const i=esVoices.findIndex(v=>v.voiceURI===voiceAssign[k]);
+    if(i>=0)return i;
+  }
+  // reparto por defecto: mujeres primeras voces, hombres últimas
+  const n=Math.max(esVoices.length,1);
+  const def={domina:0,elegante:1%n,oscuro:(n-1),caballero:(n-2+n)%n};
+  return def[k]||0;
+}
+function vbtnLabel(k){
+  refreshEsVoices();
+  if(!esVoices.length)return '🎙 Voz';
+  const v=esVoices[voiceIdx(k)];
+  return '🎙 '+shortName(v);
+}
+function cycleVoice(k,ev){
+  ev.stopPropagation();
+  refreshEsVoices();
+  if(!esVoices.length){alert('Este navegador no tiene voces disponibles.');return;}
+  const next=(voiceIdx(k)+1)%esVoices.length;
+  voiceAssign[k]=esVoices[next].voiceURI;
+  localStorage.setItem('elmaster_voices',JSON.stringify(voiceAssign));
+  document.querySelectorAll('.vbtn')[Object.keys(MASTERS).indexOf(k)].textContent='🎙 '+shortName(esVoices[next]);
+  say(SAMPLES[k],k,true);
+}
 const grid=document.getElementById('masters-grid');
 Object.entries(MASTERS).forEach(([k,m])=>{
   const c=document.createElement('button');c.className='master-card'+(k==='domina'?' sel':'');
   const file=m.img.replace('img/','');
-  c.innerHTML=`<img data-file="${file}" alt="${m.name}"><div class="mname">${m.name}<div class="mdesc">${m.desc}</div></div>`;
+  c.innerHTML=`<img data-file="${file}" alt="${m.name}"><div class="mname">${m.name}<div class="mdesc">${m.desc}</div></div><button class="vbtn">🎙 Voz</button>`;
   imgSrc(c.querySelector('img'),file);
+  const vb=c.querySelector('.vbtn');
+  vb.onclick=(ev)=>cycleVoice(k,ev);
+  vb.textContent=vbtnLabel(k);
   c.onclick=()=>{S.master=k;document.querySelectorAll('.master-card').forEach(x=>x.classList.remove('sel'));c.classList.add('sel');speakSample(k);};
   grid.appendChild(c);
 });
-function speakSample(k){
-  const m=MASTERS[k];
-  const sample={domina:'De rodillas. Ahora.',elegante:'Vamos a divertirnos un poco, ¿no crees?',oscuro:'Silencio. Mando yo.',caballero:'Permítanme dirigirles esta noche.'}[k];
-  say(sample,k,true);
-}
 
 /* ============ NOMBRES ============ */
 function saveNames(){
@@ -357,7 +406,8 @@ function say(text,masterKey,force,cb){
   if(!('speechSynthesis' in window)){cb&&cb();return;}
   speechSynthesis.cancel();
   const m=MASTERS[masterKey||S.master];
-  const v=pickVoice();
+  if(!esVoices.length)refreshEsVoices();
+  const v=esVoices[voiceIdx(masterKey||S.master)]||pickVoice();
   const chunks=text.match(/[^.!?…]+[.!?…]+["')\]]*\s*|[^.!?…]+$/g)||[text];
   let idx=0,finished=false;
   const done=()=>{if(finished)return;finished=true;clearInterval(speechWatchdog);cb&&cb();};
@@ -469,7 +519,6 @@ function transitionPhrase(arr,cb){
   say(p,S.master,false,()=>setTimeout(cb,900));
 }
 function skipOrder(){
-  if(S.busy)return;
   stopAll();
   nextOrder();
 }
@@ -549,6 +598,24 @@ function endSession(early){
 }
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 document.addEventListener('contextmenu',e=>e.preventDefault());
+/* Instalación PWA */
+let deferredPrompt=null;
+const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+const isInstalled=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();deferredPrompt=e;
+  if(!isInstalled())document.getElementById('btn-install').style.display='block';
+});
+document.getElementById('btn-install').onclick=async()=>{
+  if(!deferredPrompt)return;
+  deferredPrompt.prompt();await deferredPrompt.userChoice;
+  deferredPrompt=null;document.getElementById('btn-install').style.display='none';
+};
+if(isIOS&&!isInstalled()){
+  const h=document.getElementById('install-hint');
+  h.style.display='block';
+  h.innerHTML='📲 Para instalarla: botón <b>Compartir</b> → <b>«Añadir a pantalla de inicio»</b>';
+}
 // desbloqueo de audio en iOS/Android al primer toque
 document.body.addEventListener('pointerdown',function unlock(){
   if('speechSynthesis' in window){const u=new SpeechSynthesisUtterance(' ');u.volume=0;speechSynthesis.speak(u);}
