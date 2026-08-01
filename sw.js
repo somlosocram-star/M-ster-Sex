@@ -1,4 +1,4 @@
-const CACHE='elmaster-v2';
+const CACHE='elmaster-v4';
 const IMGS=['domina.jpg','elegante.jpg','oscuro.jpg','caballero.jpg'];
 const ASSETS=['./','./index.html','./manifest.json',
   ...IMGS.map(f=>'./img/'+f),...IMGS.map(f=>'./'+f)];

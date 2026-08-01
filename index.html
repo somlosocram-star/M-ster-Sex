@@ -86,7 +86,7 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
   <p class="hint" style="max-width:300px;margin-bottom:30px">Él y ella. Una voz que dirige.<br>Cinco niveles. Ninguna prisa.</p>
   <button class="btn primary" onclick="go('screen-master')">Comenzar</button>
   <p class="hint">🔊 Sube el volumen. El Máster habla en voz alta.</p>
-  <p class="hint" style="margin-top:40px;letter-spacing:.2em;font-size:.65rem">EL MÁSTER v0.3</p>
+  <p class="hint" style="margin-top:40px;letter-spacing:.2em;font-size:.65rem">EL MÁSTER v0.4</p>
 </div>
 
 <!-- MÁSTER -->
@@ -220,7 +220,7 @@ const ORDERS=[
  {l:2,t:'[E], acaricia la espalda de [A] por encima de la ropa, de arriba abajo.',d:60},
  {l:2,t:'[A], toca a [E] por encima del pantalón. Sin prisa.',d:60,req:{E:['Pantalón']}},
  {l:2,t:'[E], desabrocha el primer botón de la ropa de [A]. Solo uno. Y bésale ahí.',d:30,req:{A:['Blusa']}},
- {l:2,t:'[A], quítale a [E] la prenda superior. Con calma.',d:60,req:{E:['Camisa','Camiseta']},rem:{E:['Camisa','Camiseta']}},
+ {l:2,t:'[A], quítale la {E:Camisa,Camiseta} a [E]. Despacio.',d:60,req:{E:['Camisa','Camiseta']},rem:{E:['Camisa','Camiseta']}},
  {l:2,t:'[E], besa a [A] como si fuera el primer beso. Manos solo en su cara.',d:60},
  {l:2,t:'[A], siéntate en el regazo de [E] de espaldas a él. Quieta.',d:45},
  {l:2,t:'[E], pasa las manos por los muslos de [A], por encima de la ropa.',d:45,req:{A:['Falda','Pantalón','Vestido']}},
@@ -228,10 +228,10 @@ const ORDERS=[
  {l:2,t:'[E], abraza a [A] por la espalda y quédate quieto. Que sienta tu respiración.',d:60},
  {l:2,t:'[A], quítale el cinturón a [E]. Lento.',d:30,req:{E:['Cinturón']},rem:{E:['Cinturón']}},
  {l:2,t:'[E], dile al oído de [A] lo que notas al tocarla.',d:0},
- {l:2,t:'[A], desabrocha despacio la camisa de [E] mientras le miras a los ojos.',d:60,req:{E:['Camisa']}},
+ {l:2,t:'[A], desabróchale despacio la camisa a [E] mientras le miras a los ojos.',d:60,req:{E:['Camisa']}},
  /* Nivel 3 — Piel */
  {l:3,t:'[E], desviste a [A] hasta dejarla en ropa interior. Cada prenda, un beso.',d:120,req:{A:['Vestido','Blusa','Falda']},rem:{A:['Vestido','Blusa','Falda','Pantalón']}},
- {l:3,t:'[A], métete las manos por debajo de la camisa de [E] y recorre su pecho.',d:60,req:{E:['Camisa','Camiseta']}},
+ {l:3,t:'[A], mete las manos por debajo de la {E:Camisa,Camiseta} de [E] y recorre su pecho.',d:60,req:{E:['Camisa','Camiseta']}},
  {l:3,t:'[E], besa el vientre de [A], bajando poco a poco… y para justo donde empieza la ropa interior.',d:60,req:{A:['Braguitas']}},
  {l:3,t:'[A], toca a [E] por debajo de la ropa interior. Ritmo lento.',d:60,req:{E:['Calzoncillos']}},
  {l:3,t:'[E], desabróchale el sujetador a [A] con una sola mano. Tienes un minuto.',d:60,req:{A:['Sujetador']},rem:{A:['Sujetador']}},
@@ -257,7 +257,7 @@ const ORDERS=[
  {l:4,t:'[A], a cuatro patas. [E], bésale la espalda bajando, sin prisa.',d:90},
  {l:4,t:'Los dos: estimulación mutua con las manos, mirándoos a los ojos.',d:120},
  {l:4,t:'[E], elige una parte del cuerpo de [A] que nunca le hayas besado. Bésala.',d:60},
- {l:4,t:'[A], gemíle al oído a [E] mientras él te toca.',d:60},
+ {l:4,t:'[A], gime al oído de [E] mientras él te toca.',d:60},
  {l:4,t:'[A], guía la mano de [E] exactamente donde la quieres.',d:90},
  /* Nivel 5 — Sin límites */
  {l:5,t:'[E], penétrala. Despacio. Cada embestida, un segundo más lenta que la anterior.',d:120},
@@ -488,8 +488,15 @@ function stopAll(){
 }
 
 /* ============ UI SESIÓN ============ */
-function fmt(t){return t.replace(/\[E\]/g,'<span class="who">'+esc(S.nameE)+'</span>').replace(/\[A\]/g,'<span class="who">'+esc(S.nameA)+'</span>');}
-function fmtSpeak(t){return t.replace(/\[E\]/g,S.nameE).replace(/\[A\]/g,S.nameA).replace(/…/g,'... ');}
+/* {E:Camisa,Camiseta} → la primera prenda de la lista que la persona lleve puesta, en minúsculas */
+function garmentToken(t){
+  return t.replace(/\{(E|A):([^}]+)\}/g,(m,who,list)=>{
+    const found=list.split(',').find(g=>S.inv[who].has(g));
+    return (found||list.split(',')[0]).toLowerCase();
+  });
+}
+function fmt(t){return garmentToken(t).replace(/\[E\]/g,'<span class="who">'+esc(S.nameE)+'</span>').replace(/\[A\]/g,'<span class="who">'+esc(S.nameA)+'</span>');}
+function fmtSpeak(t){return garmentToken(t).replace(/\[E\]/g,S.nameE).replace(/\[A\]/g,S.nameA).replace(/…/g,'... ');}
 function esc(s){return s.replace(/[<>&"]/g,'');}
 function showOrder(html){
   const el=document.getElementById('order-text');
