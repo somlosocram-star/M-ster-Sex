@@ -26,6 +26,12 @@ h2{font-weight:normal;font-size:1.05rem;color:var(--dim);letter-spacing:.15em;ma
 .btn.ghost{border-color:#333;color:var(--dim)}
 input[type=text]{width:100%;max-width:320px;padding:14px;background:var(--bg2);border:1px solid #2a2a38;border-radius:4px;color:var(--txt);font-size:1.1rem;text-align:center;font-family:inherit;letter-spacing:.1em}
 input[type=text]:focus{outline:none;border-color:var(--accent)}
+/* Sugerencias de nombres: se abren hacia ARRIBA para no chocar con el teclado */
+.nwrap{position:relative;width:100%;max-width:320px}
+.sugg{position:absolute;bottom:calc(100% + 6px);left:0;right:0;max-height:200px;overflow-y:auto;background:#1a1a24;border:1px solid var(--accent2);border-radius:8px;display:none;z-index:30;box-shadow:0 -8px 24px rgba(0,0,0,.55);-webkit-overflow-scrolling:touch}
+.sugg button{display:block;width:100%;text-align:center;padding:12px 14px;color:var(--txt);font-size:1rem;letter-spacing:.06em;border-bottom:1px solid #26262f}
+.sugg button:last-child{border-bottom:none}
+.sugg button:active{background:rgba(176,132,66,.18);color:var(--accent)}
 /* Selección de máster */
 .masters{display:grid;grid-template-columns:1fr 1fr;gap:14px;width:100%;max-width:420px}
 .master-card{border:2px solid #2a2a38;border-radius:8px;overflow:hidden;position:relative;transition:all .25s;background:var(--bg2)}
@@ -88,10 +94,11 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
   <h2 style="margin-top:10px">Un juego para dos</h2>
   <p class="hint" style="max-width:300px;margin-bottom:30px">Él y ella. Una voz que dirige.<br>Cinco niveles. Ninguna prisa.</p>
   <button class="btn primary" onclick="go('screen-master')">Comenzar</button>
+  <button class="btn primary" id="btn-resume" style="display:none" onclick="resumeSavedSession()">▶ Continuar la sesión</button>
   <button class="btn ghost" id="btn-install" style="display:none">⬇ Instalar app</button>
   <p class="hint" id="install-hint" style="display:none"></p>
   <p class="hint">🔊 Sube el volumen. El Máster habla en voz alta.</p>
-  <p class="hint" style="margin-top:40px;letter-spacing:.2em;font-size:.65rem">EL MÁSTER v1.3</p>
+  <p class="hint" style="margin-top:40px;letter-spacing:.2em;font-size:.65rem">EL MÁSTER v2.2</p>
 </div>
 
 <!-- MÁSTER -->
@@ -108,10 +115,9 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
   <h1>Los dos</h1>
   <h2>Vuestros nombres</h2>
   <p class="persona-label">Él</p>
-  <input type="text" id="name-e" list="names-bank" placeholder="Escribe o elige de la lista" maxlength="15" autocomplete="off">
+  <div class="nwrap"><div class="sugg" id="sugg-e"></div><input type="text" id="name-e" placeholder="Escribe o elige de la lista" maxlength="15" autocomplete="off"></div>
   <p class="persona-label" style="margin-top:22px">Ella</p>
-  <input type="text" id="name-a" list="names-bank" placeholder="Escribe o elige de la lista" maxlength="15" autocomplete="off">
-  <datalist id="names-bank"></datalist>
+  <div class="nwrap"><div class="sugg" id="sugg-a"></div><input type="text" id="name-a" placeholder="Escribe o elige de la lista" maxlength="15" autocomplete="off"></div>
   <p class="hint" id="names-hint" style="margin-top:14px">Con nombres de la lista suenan las voces grabadas de los Másters.<br>Con otro nombre se usará la voz del sistema.</p>
   <button class="btn primary" style="margin-top:22px" onclick="saveNames()">Continuar</button>
 </div>
@@ -130,9 +136,11 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
 <!-- CONFIG -->
 <div class="screen" id="screen-config">
   <h1>La sesión</h1>
-  <h2>Límites de esta noche</h2>
+  <h2 id="config-story">Límites de esta noche</h2>
   <p class="persona-label">Intensidad máxima</p>
   <div class="chips" id="chips-maxlvl"></div>
+  <p class="persona-label">Duración de las pruebas</p>
+  <div class="chips" id="chips-dur"></div>
   <p class="persona-label">Voz del Máster</p>
   <div class="chips" id="chips-voice"></div>
   <button class="btn primary" style="margin-top:26px" onclick="startSession()">Que empiece el juego</button>
@@ -205,90 +213,14 @@ const GARMENTS = {
   E:['Camisa','Camiseta','Cinturón','Pantalón','Calzoncillos','Calcetines'],
   A:['Vestido','Blusa','Falda','Pantalón','Sujetador','Braguitas','Medias']
 };
-/* Órdenes: l=nivel, t=texto, d=segundos (0=auto por palabras), who, req=prendas necesarias, rem=prendas que caen tras la orden */
-const ORDERS=[
- /* Nivel 1 — Tensión */
- {l:1,t:'[E], di al oído de [A] tres cosas que piensas hacerle esta noche.',d:0},
- {l:1,t:'[A], mira a [E] a los ojos sin apartar la mirada.',d:60},
- {l:1,t:'[E], recorre la silueta de [A] con la mirada, despacio, de los pies a los ojos. Sin tocar.',d:30},
- {l:1,t:'[A], acaricia con un dedo el labio inferior de [E]. Despacio.',d:20},
- {l:1,t:'[E], descríbele a [A] la ropa interior que imaginas que lleva.',d:0},
- {l:1,t:'Los dos: de pie, a un palmo de distancia. Está prohibido tocarse.',d:60},
- {l:1,t:'[A], susurra a [E] qué es lo que más te gusta de su cuerpo.',d:0},
- {l:1,t:'[E], retira un mechón de pelo de la cara de [A] y deja la mano en su mejilla.',d:20},
- {l:1,t:'[A], camina alrededor de [E] despacio, una vuelta completa. Él no puede girarse.',d:40},
- {l:1,t:'[E], acaricia la mano de [A] como si fuera la primera vez. Solo la mano.',d:45},
- {l:1,t:'[A], di el nombre de [E] tres veces, cada vez más cerca de su oído.',d:0},
- {l:1,t:'[E], besa la mano de [A]… y mantén los labios un segundo de más.',d:15},
- {l:1,t:'[E], dile a [A] qué parte de su cuerpo besarías primero.',d:0},
- {l:1,t:'Los dos: frente contra frente, respirando juntos.',d:30},
- /* Nivel 2 — Contacto */
- {l:2,t:'[E], besa el cuello de [A], del lóbulo a la clavícula. Despacio.',d:45},
- {l:2,t:'[A], lame el lóbulo de la oreja de [E].',d:30},
- {l:2,t:'[E], acaricia la espalda de [A] por encima de la ropa, de arriba abajo.',d:60},
- {l:2,t:'[A], toca a [E] por encima del pantalón. Sin prisa.',d:60,req:{E:['Pantalón']}},
- {l:2,t:'[E], desabrocha el primer botón de la ropa de [A]. Solo uno. Y bésale ahí.',d:30,req:{A:['Blusa']}},
- {l:2,t:'[A], quítale la {E:Camisa,Camiseta} a [E]. Despacio.',d:60,req:{E:['Camisa','Camiseta']},rem:{E:['Camisa','Camiseta']}},
- {l:2,t:'[E], besa a [A] como si fuera el primer beso. Manos solo en su cara.',d:60},
- {l:2,t:'[A], siéntate en el regazo de [E] de espaldas a él. Quieta.',d:45},
- {l:2,t:'[E], pasa las manos por los muslos de [A], por encima de la ropa.',d:45,req:{A:['Falda','Pantalón','Vestido']}},
- {l:2,t:'[A], mordisquea el cuello de [E].',d:30},
- {l:2,t:'[E], abraza a [A] por la espalda y quédate quieto. Que sienta tu respiración.',d:60},
- {l:2,t:'[A], quítale el cinturón a [E]. Lento.',d:30,req:{E:['Cinturón']},rem:{E:['Cinturón']}},
- {l:2,t:'[E], dile al oído de [A] lo que notas al tocarla.',d:0},
- {l:2,t:'[A], desabróchale despacio la camisa a [E] mientras le miras a los ojos.',d:60,req:{E:['Camisa']}},
- /* Nivel 3 — Piel */
- {l:3,t:'[E], desviste a [A] hasta dejarla en ropa interior. Cada prenda, un beso.',d:120,req:{A:['Vestido','Blusa','Falda']},rem:{A:['Vestido','Blusa','Falda','Pantalón']}},
- {l:3,t:'[A], mete las manos por debajo de la {E:Camisa,Camiseta} de [E] y recorre su pecho.',d:60,req:{E:['Camisa','Camiseta']}},
- {l:3,t:'[E], besa el vientre de [A], bajando poco a poco… y para justo donde empieza la ropa interior.',d:60,req:{A:['Braguitas']}},
- {l:3,t:'[A], toca a [E] por debajo de la ropa interior. Ritmo lento.',d:60,req:{E:['Calzoncillos']}},
- {l:3,t:'[E], desabróchale el sujetador a [A] con una sola mano. Tienes un minuto.',d:60,req:{A:['Sujetador']},rem:{A:['Sujetador']}},
- {l:3,t:'[A], recorre con los labios el torso desnudo de [E].',d:90},
- {l:3,t:'[E], acaricia los pechos de [A] por encima del sujetador… luego por debajo.',d:90,req:{A:['Sujetador']}},
- {l:3,t:'[A], siéntate de espaldas sobre [E] y muévete despacio.',d:60},
- {l:3,t:'[E], masajea los hombros de [A] y baja por su espalda.',d:120},
- {l:3,t:'[A], lame la clavícula de [E] y baja hasta el ombligo.',d:60},
- {l:3,t:'[E], retira la ropa interior de [A]… con los dientes.',d:60,req:{A:['Braguitas']},rem:{A:['Braguitas']}},
- {l:3,t:'[A], retira la ropa interior de [E]… sin usar las manos.',d:90,req:{E:['Calzoncillos']},rem:{E:['Calzoncillos']}},
- {l:3,t:'[A], dile a [E], mirándole a los ojos, lo que quieres que te haga ahora.',d:0},
- {l:3,t:'[E], besa a [A] en los labios mientras la tocas por debajo de la ropa interior.',d:60,req:{A:['Braguitas']}},
- /* Nivel 4 — Fuego */
- {l:4,t:'[E], cómele el coño a [A].',d:120},
- {l:4,t:'[A], cómesela a [E]. Despacio, que dure.',d:120},
- {l:4,t:'[E], masturba a [A] con los dedos, ritmo constante.',d:120},
- {l:4,t:'[A], masturba a [E], lento, sin dejarle terminar.',d:120},
- {l:4,t:'[E], ponte detrás de [A], desnudos, y recorre su cuerpo con las manos mientras le muerdes el cuello.',d:90},
- {l:4,t:'[A], túmbate y abre las piernas. [E], solo mira durante medio minuto. Luego puedes tocar.',d:90},
- {l:4,t:'[E], usa solo la lengua. Manos a la espalda.',d:90},
- {l:4,t:'[A], cabalga sobre [E] sin penetración. Que lo sienta todo.',d:90},
- {l:4,t:'[E], chupa los pezones de [A] mientras la tocas entre las piernas.',d:90},
- {l:4,t:'[A], a cuatro patas. [E], bésale la espalda bajando, sin prisa.',d:90},
- {l:4,t:'Los dos: estimulación mutua con las manos, mirándoos a los ojos.',d:120},
- {l:4,t:'[E], elige una parte del cuerpo de [A] que nunca le hayas besado. Bésala.',d:60},
- {l:4,t:'[A], gime al oído de [E] mientras él te toca.',d:60},
- {l:4,t:'[A], guía la mano de [E] exactamente donde la quieres.',d:90},
- /* Nivel 5 — Sin límites */
- {l:5,t:'[E], penétrala. Despacio. Cada embestida, un segundo más lenta que la anterior.',d:120},
- {l:5,t:'[A], encima tú. Tú marcas el ritmo. Él tiene las manos quietas.',d:120},
- {l:5,t:'[E], desde detrás. Manos en sus caderas.',d:120},
- {l:5,t:'Los dos: la posición que más os guste, pero mirándoos a los ojos.',d:120},
- {l:5,t:'[E], para en seco. Quince segundos quieto dentro. Luego continúa.',d:75},
- {l:5,t:'[A], dile a [E] exactamente cómo lo quieres. Él obedece.',d:120},
- {l:5,t:'[E], el ritmo lo marco yo: lento… lento… rápido.',d:120},
- {l:5,t:'Los dos: terminad juntos si podéis. Yo cuento atrás.',d:180},
- {l:5,t:'[E], elige la última posición de la noche.',d:180},
-];
-const PAUSES=[
- 'Los dos: respirad. Tres respiraciones profundas. Sin hablar.',
- '[E], retírate a dos pasos y solo mira a [A].',
- 'Silencio total. No os toquéis. Solo mirad.',
- '[A], cierra los ojos. La siguiente orden es sorpresa.',
-];
+/* Guiones por Máster + micro-frases e imprevistos */
+const STORIES={"domina":{"title":"El Castigo","intro":"Silencio. Habéis sido convocados. Lleváis demasiado tiempo portándoos bien, y eso, en mi presencia, es una ofensa. Esta noche haréis lo que yo diga, cuando yo lo diga. [E]. [A]. El castigo empieza ya.","chapters":[{"trans":null,"orders":[{"t":"[E], mírala a los ojos. Sin tocarla. Dile tres cosas que piensas hacerle esta noche. En voz baja, que solo os oiga yo.","d":0},{"t":"[A], ahora te toca. Dile a [E], mirándole, qué castigo merece por pensar esas cosas.","d":0},{"t":"[E], acércate a [A] hasta sentir su respiración. A un dedo de sus labios. Ni un roce. Aguanta ahí.","d":45},{"t":"[A], desliza un dedo por el borde de la {E:Camisa,Camiseta} de [E], del cuello a la cintura, por encima de la tela. Lento. Él no se mueve.","d":45}]},{"trans":"Empezáis a entenderlo. La ropa es un privilegio. Y los privilegios se retiran.","orders":[{"t":"[A], desabrocha la {E:Camisa,Camiseta} de [E]. Botón a botón, sin prisa. Que caiga a mis pies. Él, quieto.","d":60,"req":{"E":["Camisa","Camiseta"]},"rem":{"E":["Camisa","Camiseta"]}},{"t":"[E], quítale a [A] la {A:Vestido,Blusa}. Despacio. Si tarda en caer, mejor.","d":60,"req":{"A":["Vestido","Blusa"]},"rem":{"A":["Vestido","Blusa"]}},{"t":"[E], besa a [A] donde yo digo: el cuello, el hombro, la clavícula. Sin bajar más. Se lo tiene que ganar.","d":60},{"t":"[A], de rodillas. Rodea las piernas de [E] con los brazos, por encima del {E:Pantalón,Calzoncillos}, y mírale a la cara. Hasta que yo diga.","d":45,"req":{"E":["Pantalón","Calzoncillos"]}}]},{"trans":"Bien. Ahora empieza el castigo de verdad.","orders":[{"t":"[E], quítale a [A] la {A:Falda,Pantalón}. Si se resiste la tela, usa los dientes.","d":60,"req":{"A":["Falda","Pantalón"]},"rem":{"A":["Falda","Pantalón"]}},{"t":"[A], desabrocha el {E:Pantalón} de [E] y baja la cremallera. Despacio. Sin meter la mano. Todavía no.","d":60,"req":{"E":["Pantalón"]},"rem":{"E":["Pantalón"]}},{"t":"[E], azota el culo de [A]. Diez veces. Ella las cuenta en voz alta. Si se calla, se empieza de nuevo.","d":75},{"t":"[A], ahora tú. Cinco azotes a [E], con decisión. Que entienda quién reparte hoy.","d":45}]},{"trans":"Ya no hay vuelta atrás. El que se mueva sin permiso, paga.","orders":[{"t":"[E], quítale el {A:Sujetador} a [A]. Y para. Mírala tres segundos antes de tocar nada.","d":60,"req":{"A":["Sujetador"]},"rem":{"A":["Sujetador"]}},{"t":"[A], baja los {E:Calzoncillos} de [E]. Lento. Puedes ayudarte de la boca.","d":75,"req":{"E":["Calzoncillos"]},"rem":{"E":["Calzoncillos"]}},{"t":"[E], quítale las {A:Braguitas} a [A]. Con la boca. Sin prisa. La que manda aquí soy yo, no la prisa.","d":90,"req":{"A":["Braguitas"]},"rem":{"A":["Braguitas"]}},{"t":"[E], dos dedos dentro de [A]. Despacio. Ella no puede correrse. Prohibido. Si gime, paras cinco segundos y sigues.","d":120}]},{"trans":"Sentencia. Terminaréis el castigo juntos, delante de mí. Como mando yo.","orders":[{"t":"[A], a cuatro patas. [E], recórrela entera con las manos, de los hombros a los muslos, hasta que tiemble.","d":90},{"t":"[E], cómele el coño a [A]. Dos minutos sin parar. Ella se agarra a lo que pueda. No tiene permiso para terminar.","d":120},{"t":"[A], ahora tú. La boca y las manos en [E]. Todo vale menos una cosa: no puede correrse. Si se acerca, paras.","d":120},{"t":"[E], fóllatela. Entra despacio, muy despacio. Y luego fuerte, hasta el final. Tenéis mi permiso para terminar juntos.","d":180}]}],"end":"El castigo ha terminado. Habéis obedecido mejor de lo que esperaba. Abrazaos. Esta noche os la habéis ganado."},"oscuro":{"title":"El Castigo","intro":"No hables. Ninguno de los dos. Estáis aquí porque yo lo he decidido. Y vais a pagar por cada noche aburrida que os habéis regalado. [E]. [A]. Empezamos.","chapters":[{"trans":null,"orders":[{"t":"[E], mírala. Fijo. A los ojos. Y dile, bajo, tres cosas que harías con ella si yo te dejara.","d":0},{"t":"[A], tu turno. Dile a [E] lo que merece un hombre que piensa así de ti.","d":0},{"t":"[E], pega tu cuerpo al de [A] sin tocarla. Que sienta tu respiración en el cuello. Quieto.","d":45},{"t":"[A], un dedo. Del cuello de [E] al borde de su {E:Camisa,Camiseta}. Por encima de la tela. Que le tiemble.","d":45}]},{"trans":"La ropa sobra. Fuera.","orders":[{"t":"[A], quítale la {E:Camisa,Camiseta} a [E]. Despacio. Quiero ver cómo cae.","d":60,"req":{"E":["Camisa","Camiseta"]},"rem":{"E":["Camisa","Camiseta"]}},{"t":"[E], ahora tú. La {A:Vestido,Blusa} de [A], al suelo. Sin romper nada. Todavía.","d":60,"req":{"A":["Vestido","Blusa"]},"rem":{"A":["Vestido","Blusa"]}},{"t":"[E], bésale el cuello a [A]. Los hombros. La clavícula. Nada más. Contente.","d":60},{"t":"[A], de rodillas. Agárrate a las piernas de [E], por encima del {E:Pantalón,Calzoncillos}. Mírale. Espera así.","d":45,"req":{"E":["Pantalón","Calzoncillos"]}}]},{"trans":"Hasta aquí era el calentamiento.","orders":[{"t":"[E], la {A:Falda,Pantalón} de [A]. Fuera. Como quieras.","d":60,"req":{"A":["Falda","Pantalón"]},"rem":{"A":["Falda","Pantalón"]}},{"t":"[A], abre el {E:Pantalón} de [E]. Cremallera abajo. Las manos fuera. Todavía no.","d":60,"req":{"E":["Pantalón"]},"rem":{"E":["Pantalón"]}},{"t":"[E], el culo de [A]. Diez azotes. Ella cuenta en voz alta. Sin piedad, pero sin pasarte.","d":75},{"t":"[A], devuélveselo. Cinco azotes a [E]. Fuertes. Que los recuerde mañana.","d":45}]},{"trans":"A partir de aquí, vuestros cuerpos son míos. Solo os los presto.","orders":[{"t":"[E], el {A:Sujetador} de [A], fuera. Y mírala. Tres segundos. Sin tocar.","d":60,"req":{"A":["Sujetador"]},"rem":{"A":["Sujetador"]}},{"t":"[A], los {E:Calzoncillos} de [E], abajo. Lento. Puedes usar la boca para ayudarte.","d":75,"req":{"E":["Calzoncillos"]},"rem":{"E":["Calzoncillos"]}},{"t":"[E], las {A:Braguitas} de [A]. Con la boca. Tómate tu tiempo.","d":90,"req":{"A":["Braguitas"]},"rem":{"A":["Braguitas"]}},{"t":"[E], dos dedos dentro de [A]. Lento. Profundo. Ella no se corre. Si gime, te detienes cinco segundos.","d":120}]},{"trans":"Última parte. Lo haréis delante de mí. Y os va a gustar.","orders":[{"t":"[A], a cuatro patas. [E], las manos por todo su cuerpo. Hasta que no pueda más.","d":90},{"t":"[E], cómele el coño a [A]. Dos minutos. Sin parar. Ella aguanta.","d":120},{"t":"[A], tu boca, tus manos, en [E]. Todo vale menos una cosa: no se corre. Aún no.","d":120},{"t":"[E], fóllatela. Despacio al entrar. Salvaje al final. Juntos. Ahora sí.","d":180}]}],"end":"Se acabó. Lo habéis hecho bien. Mejor de lo que pensaba. Lo que pase entre vosotros a partir de ahora… ya no es asunto mío."},"elegante":{"title":"Noche de lujo","intro":"Qué pareja más interesante. He reservado la mejor mesa de mi restaurante favorito para vosotros. Esta noche yo elijo el menú… y todo lo demás. [E]. [A]. Que empiece la velada.","chapters":[{"trans":null,"orders":[{"t":"[E], brindemos. Mírala a los ojos por encima de la copa. Sin decir nada. Solo mírala, como si fuera el postre.","d":30},{"t":"[E], en voz baja, dile a [A] qué es lo primero que le harías si esta mesa no estuviera entre los dos.","d":0},{"t":"[A], descríbele a [E] la ropa interior que llevas hoy. Con detalle. Despacio. Que el camarero no os oiga.","d":0},{"t":"[E], alarga la mano por encima de la mesa y acaricia la suya. Solo las manos. Una promesa de lo que viene.","d":45}]},{"trans":"La cena sigue su curso. Y bajo la mesa… sigue la nuestra.","orders":[{"t":"[A], descálzate un pie y súbelo por la pierna de [E], por encima del {E:Pantalón,Calzoncillos}. Que no se note en tu cara.","d":60,"req":{"E":["Pantalón","Calzoncillos"]}},{"t":"[E], tu mano bajo la mesa. Sube por el muslo de [A], por encima de la {A:Falda,Pantalón,Vestido}. Detente a un palmo del destino.","d":60},{"t":"[A], inclínate hacia [E] y bésale el cuello, muy cerca del oído, como quien cuenta un secreto.","d":45},{"t":"[E], recorre con un dedo el escote de [A], por encima de la {A:Vestido,Blusa}. Despacio. El camarero puede volver en cualquier momento.","d":45,"req":{"A":["Vestido","Blusa"]}}]},{"trans":"Pida la cuenta, [E]. Subimos a la habitación.","orders":[{"t":"[A], desnuda el torso de [E] con ceremonia. La {E:Camisa,Camiseta}, botón a botón. Esto es un hotel de cinco estrellas.","d":60,"req":{"E":["Camisa","Camiseta"]},"rem":{"E":["Camisa","Camiseta"]}},{"t":"[E], baja la {A:Vestido,Blusa} de [A]. Que caiga en la alfombra. Mírala antes de tocarla.","d":60,"req":{"A":["Vestido","Blusa"]},"rem":{"A":["Vestido","Blusa"]}},{"t":"[E], túmbala en la cama y bésala del cuello al ombligo. Sin saltarte nada. El minibar puede esperar.","d":90},{"t":"[A], desabrocha el {E:Pantalón} de [E] y déjalo caer. Esta noche no hará falta el servicio de habitaciones.","d":60,"req":{"E":["Pantalón"]},"rem":{"E":["Pantalón"]}}]},{"trans":"La ciudad ahí abajo. Y aquí arriba, nada que os separe.","orders":[{"t":"[E], libera a [A] del {A:Sujetador}. Despacio. Y besa exactamente donde acaba de quedar libre.","d":90,"req":{"A":["Sujetador"]},"rem":{"A":["Sujetador"]}},{"t":"[A], desenvuelve tu regalo: los {E:Calzoncillos} de [E], hacia abajo, con calma.","d":60,"req":{"E":["Calzoncillos"]},"rem":{"E":["Calzoncillos"]}},{"t":"[E], bésale el interior de los muslos a [A]. Acércate todo lo que ella aguante. Solo eso. Todavía no.","d":90},{"t":"[A], boca arriba. [E], sus pechos entre tus manos. Lento, con peso, como quien moldea algo precioso.","d":90}]},{"trans":"Ya no sois dos personas en un hotel. Sois esto.","orders":[{"t":"[E], las {A:Braguitas} de [A]. La última prenda de la noche. Que no quede nada pendiente.","d":60,"req":{"A":["Braguitas"]},"rem":{"A":["Braguitas"]}},{"t":"[A], guía la mano de [E]. Enséñale exactamente dónde y cómo. Dos minutos de lección.","d":120},{"t":"[E], cómele el coño a [A] con la calma de quien no tiene hora de salida. La habitación es vuestra hasta mañana.","d":120},{"t":"[E], hazle el amor a [A]. Primero despacio, muy despacio. Luego como si el hotel entero temblara.","d":180}]}],"end":"Y con esto… el postre. Quedaos así, enredados. La noche es vuestra. Yo me retiro, con muy buen sabor de boca."},"caballero":{"title":"Noche de lujo","intro":"Bienvenidos. He reservado la mejor mesa del restaurante… y la suite de arriba. No hace falta que pidan nada: esta noche el menú lo decido yo. [E]. [A]. Sírvanse.","chapters":[{"trans":null,"orders":[{"t":"[E], brinde por ella. A los ojos, por encima de la copa. Sin una palabra. Las miradas también se beben.","d":30},{"t":"[E], acérquese y dígale a [A], en voz baja, lo primero que haría si la mesa desapareciera.","d":0},{"t":"[A], cuéntele a [E] qué lencería lleva puesta. Al oído, con calma. Los detalles importan.","d":0},{"t":"[E], tome la mano de [A] sobre la mesa y acaríciela. Nada más que las manos. De momento.","d":45}]},{"trans":"Permítanme subir la apuesta. Bajo la mesa, señores.","orders":[{"t":"[A], descálcese un pie y recorra la pierna de [E], por encima del {E:Pantalón,Calzoncillos}. Sonrisa de inocencia, por favor.","d":60,"req":{"E":["Pantalón","Calzoncillos"]}},{"t":"[E], su mano bajo la mesa, subiendo por el muslo de [A], sobre la {A:Falda,Pantalón,Vestido}. Deténgase justo antes.","d":60},{"t":"[A], acérquese a su oído y bésele el cuello. Como un secreto que no puede contarse en voz alta.","d":45},{"t":"[E], un dedo por el escote de [A], por encima de la {A:Vestido,Blusa}. Con elegancia. Siempre con elegancia.","d":45,"req":{"A":["Vestido","Blusa"]}}]},{"trans":"La cuenta, por favor. Nos retiramos a la suite.","orders":[{"t":"[A], desvista el torso de [E]. La {E:Camisa,Camiseta}, sin prisa. La ocasión lo merece.","d":60,"req":{"E":["Camisa","Camiseta"]},"rem":{"E":["Camisa","Camiseta"]}},{"t":"[E], la {A:Vestido,Blusa} de [A], al suelo. Y permítase mirarla. Es el espectáculo de la noche.","d":60,"req":{"A":["Vestido","Blusa"]},"rem":{"A":["Vestido","Blusa"]}},{"t":"[E], extiéndala en la cama y bésele del cuello al ombligo. Sin omitir nada, caballero.","d":90},{"t":"[A], el {E:Pantalón} de [E], fuera. En la suite no se viste. Se desviste.","d":60,"req":{"E":["Pantalón"]},"rem":{"E":["Pantalón"]}}]},{"trans":"Las luces de la ciudad, abajo. Y aquí, solo piel.","orders":[{"t":"[E], quite el {A:Sujetador} de [A]. Y deposite sus besos donde estaba la tela.","d":90,"req":{"A":["Sujetador"]},"rem":{"A":["Sujetador"]}},{"t":"[A], los {E:Calzoncillos} de [E]. Desenvuelva su regalo con la calma que merece.","d":60,"req":{"E":["Calzoncillos"]},"rem":{"E":["Calzoncillos"]}},{"t":"[E], el interior de los muslos de [A] espera sus besos. Acérquese cuanto ella permita. Nada más.","d":90},{"t":"[A], recuéstese. [E], sus pechos, entre sus manos. Firme y lento. Como debe hacerse.","d":90}]},{"trans":"Olviden el protocolo. Lo que queda de noche es instinto.","orders":[{"t":"[E], las {A:Braguitas} de [A]. La última prenda. Retírela como se merece: despacio.","d":60,"req":{"A":["Braguitas"]},"rem":{"A":["Braguitas"]}},{"t":"[A], tome la mano de [E] y enséñele el camino exacto. Sea su maestra dos minutos.","d":120},{"t":"[E], cómele el coño a [A] con toda la calma del mundo. Nadie espera abajo.","d":120},{"t":"[E], hágale el amor. Lento, muy lento al principio. Y después, sin reservas.","d":180}]}],"end":"Se ha cerrado el círculo, señores. La suite es suya hasta el amanecer. Ha sido un placer dirigirles."}};
+const EXTRAS={"domina":{"micro":["Bien. Seguid exactamente así.","Os estoy mirando. No os detengáis.","Eso es. Sin prisa.","Todavía no he dicho que paréis.","Me gusta lo que veo.","Ni se os ocurra parar.","Más despacio. Quiero verlo todo.","El tiempo aún no se ha acabado."],"imprev":[{"t":"Imprevisto. [E], besa la mano de [A]. Como si fuera la última vez.","d":20},{"t":"Alto. Los dos, quietos, mirándome. Tres respiraciones. Ya está. Seguid.","d":15},{"t":"[A], dile a [E] lo mucho que te gusta obedecerme. En voz alta.","d":0},{"t":"[E], un azote a [A]. Uno solo. Porque yo lo digo.","d":15},{"t":"[A], acaricia a [E] por encima de lo que le quede de ropa. Quince segundos. Ya.","d":15},{"t":"Silencio. Solo quiero oíros respirar.","d":12}]},"oscuro":{"micro":["Seguid.","No paréis. Aún no.","Os veo. A los dos.","Eso. Justo eso.","El reloj no existe. Solo yo.","Aguantad.","Quiero oír la respiración. Nada más.","Todavía queda."],"imprev":[{"t":"Cambio de planes. [E], abraza a [A] por la espalda. Fuerte. Sin hablar.","d":20},{"t":"Quietos. Ni un movimiento. Cuento hasta diez.","d":12},{"t":"[A], dile a [E] en voz alta lo que estás sintiendo. Ahora.","d":0},{"t":"[E], la mano de [A], a tu boca. Bésala. Despacio.","d":15},{"t":"[A], un azote a [E]. Sin avisarle.","d":15},{"t":"Respirad. Los dos. Esto no ha hecho más que empezar.","d":12}]},"elegante":{"micro":["Qué bonito. Seguid.","No miréis el reloj. Miradme a mí.","Eso es… despacio.","Brindo por vosotros.","El camarero tardará. Aprovechad.","Me encanta esta mesa.","Seguid, artistas.","Aún no es la hora del postre."],"imprev":[{"t":"Un brindis improvisado. [E], dile a [A] un piropo de los que ponen colorados.","d":0},{"t":"[A], quita una mota de polvo imaginaria del hombro de [E]. Muy de cerca.","d":15},{"t":"Los dos, una respiración juntos. Inhala ella. Exhala él.","d":12},{"t":"[E], susurra a [A] cómo terminará esta noche. Que lo oiga bien.","d":0},{"t":"[A], baila con [E] quince segundos. Sin música. O con la vuestra.","d":15},{"t":"Pausa de etiqueta. Mirad cómo os tiemblan las manos. Bonito, ¿verdad?","d":10}]},"caballero":{"micro":["Excelente. Continúen.","Tienen todo mi tiempo.","Así me gusta. Con calma.","No se detengan.","La noche es larga. Aprovéchenla.","Permítanme observar.","Muy bien ejecutado.","Aún queda tiempo, señores."],"imprev":[{"t":"Un detalle. [E], acomode a [A] en su asiento. Como debe ser.","d":15},{"t":"[A], ajuste el cuello de [E], aunque no lo necesite. De cerca.","d":15},{"t":"Permítanme un momento. Solo quiero ver cómo se miran.","d":10},{"t":"[E], diga a [A] tres palabras que la definan esta noche. Elegantes, por favor.","d":0},{"t":"[A], guíe a [E] en un pequeño baile. Quince segundos de etiqueta.","d":15},{"t":"[E], bese la frente de [A]. A veces es el gesto más atrevido.","d":12}]}};
 const LEVEL_NAMES=['Tensión','Contacto','Piel','Fuego','Sin límites'];
 
 /* ============ ESTADO ============ */
 let S={master:'domina',nameE:'Él',nameA:'Ella',inv:{E:new Set(GARMENTS.E.slice(0,4)),A:new Set(GARMENTS.A.slice(0,6))},
-  maxLvl:5,voiceMode:'multi',namesInBank:false,level:1,used:new Set(),ordersInLevel:0,total:0,paused:false,busy:false,startTime:0};
+  maxLvl:5,voiceMode:'multi',durFactor:1,lastImprev:-1,namesInBank:false,level:1,used:new Set(),ordersInLevel:0,total:0,paused:false,busy:false,startTime:0};
 let timerInt=null,voices=[];
 
 /* ============ NAVEGACIÓN ============ */
@@ -303,6 +235,7 @@ function imgSrc(el,file){
 const SAMPLES={domina:'De rodillas. Ahora.',elegante:'Vamos a divertirnos un poco, ¿no crees?',oscuro:'Silencio. Mando yo.',caballero:'Permítanme dirigirles esta noche.'};
 /* La muestra suena SIEMPRE con la voz grabada del Máster (no necesita nombres); TTS solo de respaldo */
 function speakSample(k){
+  ensureSprite(k);
   if(VOX){
     const key=VOX.texts[SAMPLES[k]];
     const off=key&&VOX[k]&&VOX[k][key];
@@ -369,12 +302,19 @@ function buildChips(id,list,set){
   });
 }
 function saveClothes(){
+  document.getElementById('config-story').textContent='«'+STORIES[S.master].title+'» — límites de esta noche';
   // config: nivel máximo y voz
   const ml=document.getElementById('chips-maxlvl');ml.innerHTML='';
   [1,2,3,4,5].forEach(n=>{
     const b=document.createElement('button');b.className='chip'+(n===S.maxLvl?' on':'');b.textContent=n+' · '+LEVEL_NAMES[n-1];
     b.onclick=()=>{S.maxLvl=n;ml.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));b.classList.add('on');};
     ml.appendChild(b);
+  });
+  const dc=document.getElementById('chips-dur');dc.innerHTML='';
+  [['Corta',0.75],['Normal',1],['Larga',1.3]].forEach(([label,val])=>{
+    const b=document.createElement('button');b.className='chip'+(val===S.durFactor?' on':'');b.textContent=label;
+    b.onclick=()=>{S.durFactor=val;dc.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));b.classList.add('on');};
+    dc.appendChild(b);
   });
   const vc=document.getElementById('chips-voice');vc.innerHTML='';
   [['Voz por Máster','multi'],['Una sola voz','single'],['Solo texto','off']].forEach(([label,val])=>{
@@ -391,57 +331,133 @@ function saveClothes(){
 /* ============ VOCES GRABADAS (sprites mp3) ============ */
 let VOX=null, audioEl=new Audio(), playTimer=null;
 audioEl.preload='auto';
-fetch('voice-index.json').then(r=>r.ok?r.json():null).then(j=>{VOX=j;fillNamesBank();}).catch(()=>{});
+fetch('voice-index.json').then(r=>r.ok?r.json():null).then(j=>{VOX=j;}).catch(()=>{});
+/* Precarga del sprite en memoria (blob): los saltos a los nombres, al final del archivo, son instantáneos */
+const spriteBlobs={};
+function ensureSprite(mk){
+  if(spriteBlobs[mk])return;
+  spriteBlobs[mk]='loading';
+  fetch('voz-'+mk+'.mp3').then(r=>r.ok?r.blob():Promise.reject()).then(b=>{
+    spriteBlobs[mk]=URL.createObjectURL(b);
+  }).catch(()=>{delete spriteBlobs[mk];});
+}
+function spriteURL(mk){
+  const v=spriteBlobs[mk];
+  return (v&&v!=='loading')?v:'voz-'+mk+'.mp3';
+}
 function cleanChunkJS(c){c=c.trim().replace(/^[,.\u2026;]+/,'').trim();return c.length>1?c:'';}
 function spriteParts(tpl,masterKey){
   if(!VOX||!S.namesInBank)return null;
   const mk=(S.voiceMode==='single')?'domina':masterKey;
   const table=VOX[mk];if(!table)return null;
-  const parts=[];const re=/\[E\]|\[A\]/g;let last=0,m;
+  const parts=[];const re=/\[E\]|\[A\]|\{(E|A):([^}]+)\}/g;let last=0,m;
   const pushText=s=>{const c=cleanChunkJS(s);if(!c)return true;const key=VOX.texts[c];const off=key&&table[key];if(!off)return false;parts.push(off);return true;};
   const pushName=who=>{const nm=who==='E'?S.nameE:S.nameA;const key=VOX.names[nm];const off=key&&table[key];if(!off)return false;parts.push(off);return true;};
+  /* token de prenda: la primera de la lista que lleve puesta, con su audio propio */
+  const pushGarm=(who,list)=>{
+    const g=list.split(',').find(x=>S.inv[who].has(x));
+    if(!g)return false;
+    const key=VOX.garments&&VOX.garments[g.toLowerCase()];
+    const off=key&&table[key];
+    if(!off)return false;
+    parts.push(off);return true;
+  };
   while((m=re.exec(tpl))){
     if(!pushText(tpl.slice(last,m.index)))return null;
-    if(!pushName(m[0]==='[E]'?'E':'A'))return null;
-    last=m.index+3;
+    if(m[0]==='[E]'){if(!pushName('E'))return null;}
+    else if(m[0]==='[A]'){if(!pushName('A'))return null;}
+    else if(!pushGarm(m[1],m[2]))return null;
+    last=m.index+m[0].length;
   }
   if(!pushText(tpl.slice(last)))return null;
   return parts.length?parts:null;
 }
-let playGen=0; // generación: invalida reproducciones pendientes al parar
+let playGen=0, playTimer2=null;
+const audioB=new Audio();audioB.preload='auto';
+/* Dos reproductores alternados: mientras uno suena, el otro ya queda posicionado
+   en el siguiente fragmento. El relevo es casi instantáneo (voz contra voz). */
+function primeSeek(el,begin){
+  el._target=begin;el._ready=false;
+  const onSk=()=>{
+    if(Math.abs(el.currentTime-el._target)<0.08){el._ready=true;el.removeEventListener('seeked',onSk);}
+  };
+  el.addEventListener('seeked',onSk);
+  try{el.currentTime=begin;}catch(e){el._ready=true;}
+}
 function playSprite(parts,masterKey,cb){
   const mk=(S.voiceMode==='single')?'domina':masterKey;
-  const url='voz-'+mk+'.mp3';
-  if(!audioEl.src.endsWith(url))audioEl.src=url;
+  ensureSprite(mk);
+  const url=spriteURL(mk);
   const gen=++playGen;
-  let i=0;
-  const next=()=>{
+  const els=[audioEl,audioB];
+  els.forEach(a=>{if(!a.src.endsWith(url))a.src=url;a._ready=false;});
+  let i=0,cur=0;
+  const playIdx=()=>{
     if(gen!==playGen)return;
-    if(i>=parts.length){audioEl.pause();cb&&cb();return;} // pausa: sin esto el audio sigue rodando por el archivo
+    if(i>=parts.length){els.forEach(a=>a.pause());cb&&cb();return;}
     const off=parts[i++];
-    const begin=Math.max(0,off[0]-0.07); // entra en el silencio previo: nunca corta la primera sílaba
-    const segMs=Math.max(300,(off[1]-begin)*1000+90);
+    const el=els[cur],nx=els[cur^1];
+    const begin=Math.max(0,off[0]-0.04); // entra 40 ms antes de la voz
+    const speechMs=Math.max(250,(off[1]-begin)*1000+30); // para 30 ms después de la voz
     let started=false;
-    const go=()=>{
-      if(started)return;started=true;
-      audioEl.removeEventListener('seeked',go);
-      clearTimeout(seekGuard);
-      if(gen!==playGen)return;
-      playTimer=setTimeout(next,segMs);
-      audioEl.play().catch(()=>{clearTimeout(playTimer);cb&&cb();});
+    const startPlay=()=>{
+      if(started||gen!==playGen)return;started=true;
+      el._ready=false;
+      el.play().catch(()=>{els.forEach(a=>a.pause());cb&&cb();});
+      // posiciona el siguiente casi de inmediato (el salto tarda un poco; así llega antes del relevo)
+      if(i<parts.length){
+        const nbegin=Math.max(0,parts[i][0]-0.04);
+        playTimer2=setTimeout(()=>{if(gen===playGen)primeSeek(nx,nbegin);},150);
+      }
+      // relevo SIN corte: arranca el siguiente ya; el actual sigue 350 ms más
+      // (en el archivo solo hay silencio ahí) para que el retardo del altavoz no corte la voz
+      playTimer=setTimeout(()=>{
+        if(gen!==playGen)return;
+        cur^=1;playIdx();
+        setTimeout(()=>{if(gen===playGen)el.pause();},350);
+      },speechMs);
     };
-    audioEl.addEventListener('seeked',go);
-    const seekGuard=setTimeout(go,1500); // por si 'seeked' no llega
-    try{audioEl.currentTime=begin;}catch(e){go();}
+    if(el._ready&&Math.abs((el._target||-9)-begin)<0.001){startPlay();}
+    else{
+      primeSeek(el,begin);
+      const onSk=()=>{if(el._ready){el.removeEventListener('seeked',onSk);startPlay();}};
+      el.addEventListener('seeked',onSk);
+      // si el salto no llega, NUNCA sonar desde una posición errónea: saltar el fragmento
+      setTimeout(()=>{el.removeEventListener('seeked',onSk);if(!started&&gen===playGen)playIdx();},1200);
+    }
   };
-  next();
+  playIdx();
 }
-function fillNamesBank(){
-  const dl=document.getElementById('names-bank');if(!dl||!VOX)return;
-  Object.keys(VOX.names).sort((a,b)=>a.localeCompare(b,'es')).forEach(n=>{
-    const o=document.createElement('option');o.value=n;dl.appendChild(o);
-  });
+/* Lista propia de sugerencias (el datalist nativo se solapaba con el teclado) */
+const normTxt=s=>s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+function setupNameSuggest(inputId,suggId){
+  const inp=document.getElementById(inputId),box=document.getElementById(suggId);
+  const render=()=>{
+    if(!VOX){box.style.display='none';return;}
+    const q=normTxt(inp.value.trim());
+    let hits;
+    if(!q)hits=Object.keys(VOX.names).sort((a,b)=>a.localeCompare(b,'es')).slice(0,12);
+    else{
+      const all=Object.keys(VOX.names);
+      hits=all.filter(n=>normTxt(n).startsWith(q));
+      if(!hits.length)hits=all.filter(n=>normTxt(n).includes(q));
+      hits=hits.slice(0,8);
+    }
+    if(!hits.length){box.style.display='none';return;}
+    box.innerHTML='';
+    hits.forEach(n=>{
+      const b=document.createElement('button');b.type='button';b.textContent=n;
+      b.onpointerdown=ev=>{ev.preventDefault();inp.value=n;box.style.display='none';};
+      box.appendChild(b);
+    });
+    box.style.display='block';
+  };
+  inp.addEventListener('input',render);
+  inp.addEventListener('focus',render);
+  inp.addEventListener('blur',()=>setTimeout(()=>{box.style.display='none';},180));
 }
+setupNameSuggest('name-e','sugg-e');
+setupNameSuggest('name-a','sugg-a');
 
 /* ============ VOZ ============ */
 let speechWatchdog=null;
@@ -496,10 +512,12 @@ function sayTTS(text,masterKey,force,cb){
 
 /* ============ SESIÓN ============ */
 function startSession(){
+  ensureSprite(S.master);
   const m=MASTERS[S.master];
   imgSrc(document.getElementById('g-avatar'),m.img.replace('img/',''));
   document.getElementById('g-mname').textContent=m.name;
   S.level=1;S.used=new Set();S.ordersInLevel=0;S.total=0;S.startTime=Date.now();S.paused=false;
+  buildStory();
   renderDots();renderInv();
   go('screen-game');
   document.getElementById('order-text').textContent='';
@@ -508,7 +526,7 @@ function startSession(){
   else if(S.voiceMode!=='off'&&!pickVoice())
     document.getElementById('phase-msg').textContent='⚠ sin voz en español; usando voz por defecto del sistema';
   else document.getElementById('phase-msg').textContent='';
-  setTimeout(()=>{say(m.intro,S.master,false,()=>setTimeout(nextOrder,1200));},600);
+  setTimeout(nextOrder,600);
 }
 function renderDots(){
   const d=document.getElementById('level-dots');d.innerHTML='';
@@ -533,69 +551,102 @@ function reqOk(o){
   }
   return true;
 }
-function pickOrder(){
-  let pool=ORDERS.map((o,i)=>({...o,i})).filter(o=>o.l===S.level&&!S.used.has(o.i)&&reqOk(o));
-  if(!pool.length){ // si el nivel se agotó, permitir repetir
-    pool=ORDERS.map((o,i)=>({...o,i})).filter(o=>o.l===S.level&&reqOk(o));
-  }
-  if(!pool.length)return null;
-  return pool[Math.floor(Math.random()*pool.length)];
+/* ============ MOTOR DE HISTORIA ============ */
+/* aplana el guion del Máster en una secuencia de líneas jugables */
+function buildStory(){
+  const st=STORIES[S.master];
+  S.lines=[{t:st.intro,lvl:1,narr:true}];
+  st.chapters.forEach((c,ci)=>{
+    const lvl=ci+1;
+    if(lvl>S.maxLvl)return; // capítulo por encima del nivel máximo elegido
+    if(c.trans)S.lines.push({t:c.trans,lvl,trans:true});
+    c.orders.forEach(o=>S.lines.push({t:o.t,d:o.d,req:o.req,rem:o.rem,lvl}));
+  });
+  S.lines.push({t:st.end,lvl:Math.min(S.maxLvl,5),narr:true,end:true});
+  S.pos=0;
+}
+/* ¿los tokens de prenda de esta línea se pueden resolver con lo que queda puesto? */
+function tokensOk(t){
+  let ok=true;
+  t.replace(/\{(E|A):([^}]+)\}/g,(m,who,list)=>{
+    if(!list.split(',').some(g=>S.inv[who].has(g)))ok=false;
+    return m;
+  });
+  return ok;
 }
 function nextOrder(){
   if(S.paused)return;
+  // saltar líneas que no cuadran con el inventario actual
+  while(S.pos<S.lines.length){
+    const ln=S.lines[S.pos];
+    if((!ln.req||reqOk(ln))&&tokensOk(ln.t))break;
+    S.pos++;
+  }
+  if(S.pos>=S.lines.length){endSession(false);return;}
+  saveSession(); // guarda el punto exacto: al reanudar se repite esta línea
+  const ln=S.lines[S.pos++];
   S.busy=true;
-  const o=pickOrder();
-  if(!o){changeLevel(1);setTimeout(nextOrder,2500);S.busy=false;return;}
-  S.used.add(o.i);S.total++;S.ordersInLevel++;
-  const text=fmt(o.t);
-  showOrder(text);
-  say(o.t,S.master,false,()=>{
-    // prendas que caen
-    if(o.rem){for(const who of ['E','A'])if(o.rem[who])o.rem[who].forEach(g=>S.inv[who].delete(g));renderInv();}
-    const dur=o.d>0?o.d:autoDur(o.t);
+  if(ln.narr||ln.trans){ // narrativa: se muestra en cursiva atenuada, sin temporizador
+    if(ln.trans){S.level=ln.lvl;renderDots();document.getElementById('phase-msg').textContent=LEVEL_NAMES[ln.lvl-1];}
+    showOrder('<span style="color:var(--dim)">'+fmt(ln.t)+'</span>');
+    say(ln.t,S.master,false,()=>{
+      S.busy=false;
+      if(ln.end){endSession(false);return;}
+      setTimeout(nextOrder,ln.trans?1800:2400);
+    });
+    return;
+  }
+  if(ln.lvl!==S.level){S.level=ln.lvl;renderDots();}
+  S.total++;
+  showOrder(fmt(ln.t));
+  say(ln.t,S.master,false,()=>{
+    if(ln.rem){for(const who of ['E','A'])if(ln.rem[who])ln.rem[who].forEach(g=>S.inv[who].delete(g));renderInv();}
+    const dur=Math.round((ln.d>0?ln.d:autoDur(ln.t))*S.durFactor);
     runTimer(dur,()=>{
       hideTimer();
       document.getElementById('phase-msg').textContent='';
       S.busy=false;
-      // avance automático de nivel cada 4 órdenes
-      if(S.ordersInLevel>=4){
-        if(S.level>=S.maxLvl){endSession(false);return;}
-        S.level++;S.ordersInLevel=0;renderDots();
-        transitionPhrase(MASTERS[S.master].up,()=>setTimeout(nextOrder,1800));
-      }else{
-        // ocasionalmente una pausa de tensión (25%)
-        if(Math.random()<0.25&&S.total>2){
-          const p=PAUSES[Math.floor(Math.random()*PAUSES.length)];
-          showOrder(fmt(p));
-          say(p,S.master,false,()=>runTimer(18,()=>{hideTimer();setTimeout(nextOrder,800);}));
-        }else setTimeout(nextOrder,1500);
-      }
+      setTimeout(()=>maybeImprevisto(nextOrder),1200);
     });
   });
 }
-function transitionPhrase(arr,cb){
-  const p=arr[Math.floor(Math.random()*arr.length)];
-  document.getElementById('phase-msg').textContent=LEVEL_NAMES[S.level-1];
-  showOrder('<span style="color:var(--dim)">'+p+'</span>');
-  say(p,S.master,false,()=>setTimeout(cb,900));
+/* Imprevistos: un 20% de las veces el Máster intercala algo no guionizado */
+function maybeImprevisto(then){
+  if(!EXTRAS[S.master]||Math.random()>=0.2||S.total<2){then();return;}
+  const im=EXTRAS[S.master].imprev;
+  let idx;do{idx=Math.floor(Math.random()*im.length);}while(im.length>1&&idx===S.lastImprev);
+  S.lastImprev=idx;
+  const o=im[idx];
+  S.busy=true;
+  showOrder('<span style="color:var(--dim)">'+fmt(o.t)+'</span>');
+  say(o.t,S.master,false,()=>{
+    S.busy=false;
+    if(o.d>0){runTimer(Math.round(o.d*S.durFactor),()=>{hideTimer();setTimeout(then,1000);});}
+    else setTimeout(then,1400);
+  });
 }
 function skipOrder(){
   stopAll();
-  nextOrder();
+  nextOrder(); // la línea actual ya se consumió al mostrarse: salta a la siguiente
 }
+/* ❄/🔥: salta al PRINCIPIO del capítulo anterior/siguiente (su transición incluida) */
 function changeLevel(delta){
   const nl=Math.min(Math.max(S.level+delta,1),S.maxLvl);
-  if(nl===S.level&&delta>0)return;
-  if(nl===S.level&&delta<0)return;
+  if(nl===S.level)return;
   stopAll();
-  S.level=nl;S.ordersInLevel=0;renderDots();
-  transitionPhrase(delta>0?MASTERS[S.master].up:MASTERS[S.master].down,()=>setTimeout(nextOrder,1800));
+  const idx=S.lines.findIndex(l=>l.lvl===nl&&!l.narr);
+  S.pos=idx>=0?idx:S.lines.length;
+  S.level=nl;renderDots();
+  setTimeout(nextOrder,800);
 }
 function stopAll(){
   playGen++; // invalida cualquier salto de audio pendiente
   if(timerInt){clearInterval(timerInt);timerInt=null;}
   if(playTimer){clearTimeout(playTimer);playTimer=null;}
-  audioEl.pause();
+  if(playTimer2){clearTimeout(playTimer2);playTimer2=null;}
+  if(hbTimer){clearTimeout(hbTimer);hbTimer=null;}
+  microTimers.forEach(clearTimeout);microTimers=[];
+  audioEl.pause();audioB.pause();hbEl.pause();
   if('speechSynthesis' in window)speechSynthesis.cancel();
   S.busy=false;
 }
@@ -618,18 +669,54 @@ function showOrder(html){
 }
 function autoDur(t){const words=t.split(/\s+/).length;return Math.min(Math.max(words/2.2+5,10),30);}
 const CIRC=414.7;
+/* Latido: últimos 20 s del temporizador, acelerando de 75 a 150 lpm */
+const hbEl=new Audio('heartbeat.mp3');hbEl.preload='auto';hbEl.volume=0.55;
+let hbTimer=null, hbT0=0, microTimers=[];
+function scheduleHeartbeat(durSec){
+  const beat=()=>{
+    const left=durSec-(Date.now()-hbT0)/1000;
+    if(left<=0)return;
+    const r=Math.min(left,20);
+    const bpm=75+(150-75)*(1-r/20); // acelera al acercarse el final
+    try{hbEl.currentTime=0;hbEl.play().catch(()=>{});}catch(e){}
+    hbTimer=setTimeout(beat,60000/bpm);
+  };
+  hbT0=Date.now();
+  // primera entrada: cuando queden 20 s (o ya si el temporizador es más corto)
+  hbTimer=setTimeout(beat,Math.max(0,(durSec-20))*1000);
+}
+/* Micro-frases del Máster durante el temporizador: sensación de ser observados */
+function scheduleMicro(durSec){
+  if(S.voiceMode==='off'||!EXTRAS[S.master])return;
+  if(durSec<30)return;
+  const pool=EXTRAS[S.master].micro;
+  const spots=[0.35+Math.random()*0.2];
+  if(durSec>=75)spots.push(0.7+Math.random()*0.15);
+  spots.forEach(f=>{
+    microTimers.push(setTimeout(()=>{
+      if(S.paused)return;
+      const txt=pool[Math.floor(Math.random()*pool.length)];
+      say(txt,S.master,false,()=>{});
+    },durSec*f*1000));
+  });
+}
 function runTimer(sec,done){
   const wrap=document.getElementById('ring-wrap'),fg=document.getElementById('ring-fg'),tt=document.getElementById('ring-time');
   wrap.classList.remove('hidden-ring');
   let left=sec;tt.textContent=fmtTime(left);
   fg.style.strokeDashoffset=0;
   if(timerInt)clearInterval(timerInt);
+  scheduleHeartbeat(sec);
+  scheduleMicro(sec);
   const t0=Date.now();
   timerInt=setInterval(()=>{
     left=Math.max(0,sec-(Date.now()-t0)/1000);
     tt.textContent=fmtTime(Math.ceil(left));
     fg.style.strokeDashoffset=CIRC*(1-left/sec);
-    if(left<=0){clearInterval(timerInt);timerInt=null;done();}
+    if(left<=0){clearInterval(timerInt);timerInt=null;
+      if(hbTimer){clearTimeout(hbTimer);hbTimer=null;}
+      microTimers.forEach(clearTimeout);microTimers=[];
+      done();}
   },200);
 }
 function fmtTime(s){const m=Math.floor(s/60),r=s%60;return m>0?m+':'+String(r).padStart(2,'0'):r;}
@@ -647,11 +734,48 @@ const cancelPress=()=>{clearTimeout(pressT);bp.style.background='';};
 bp.addEventListener('pointerup',cancelPress);
 bp.addEventListener('pointerleave',cancelPress);
 bp.addEventListener('pointercancel',cancelPress);
-function pauseSession(){S.paused=true;stopAll();go('screen-pause');}
+function pauseSession(){S.paused=true;if(S.busy&&S.pos>0)S.pos--;stopAll();go('screen-pause');}
 function resumeSession(){S.paused=false;go('screen-game');setTimeout(nextOrder,800);}
+/* ============ CONTINUAR SESIÓN ============ */
+function saveSession(){
+  if(!S.lines||!S.lines.length)return;
+  localStorage.setItem('elmaster_session',JSON.stringify({
+    master:S.master,nameE:S.nameE,nameA:S.nameA,
+    invE:[...S.inv.E],invA:[...S.inv.A],
+    maxLvl:S.maxLvl,voiceMode:S.voiceMode,durFactor:S.durFactor,
+    pos:S.pos,total:S.total,startTime:S.startTime,ts:Date.now()
+  }));
+}
+function clearSession(){localStorage.removeItem('elmaster_session');refreshResumeBtn();}
+function refreshResumeBtn(){
+  const b=document.getElementById('btn-resume');if(!b)return;
+  try{
+    const s=JSON.parse(localStorage.getItem('elmaster_session')||'null');
+    b.style.display=(s&&Date.now()-s.ts<24*3600*1000&&s.pos>1)?'':'none';
+  }catch(e){b.style.display='none';}
+}
+function resumeSavedSession(){
+  let s;try{s=JSON.parse(localStorage.getItem('elmaster_session')||'null');}catch(e){}
+  if(!s)return;
+  Object.assign(S,{master:s.master,nameE:s.nameE,nameA:s.nameA,maxLvl:s.maxLvl,
+    voiceMode:s.voiceMode,durFactor:s.durFactor||1,total:s.total,paused:false,busy:false,
+    namesInBank:!!(VOX&&VOX.names[s.nameE]&&VOX.names[s.nameA])});
+  S.inv={E:new Set(s.invE),A:new Set(s.invA)};
+  S.startTime=s.startTime||Date.now();
+  ensureSprite(S.master);
+  const m=MASTERS[S.master];
+  imgSrc(document.getElementById('g-avatar'),m.img.replace('img/',''));
+  document.getElementById('g-mname').textContent=m.name;
+  buildStory();
+  S.pos=Math.min(s.pos,S.lines.length);
+  S.level=S.lines[Math.max(0,S.pos-1)].lvl;
+  renderDots();renderInv();
+  go('screen-game');
+  setTimeout(nextOrder,800);
+}
 function endSession(early){
   stopAll();
-  if(!early)say(MASTERS[S.master].name==='La Dómina'?'Habéis terminado. Por hoy. A partir de aquí… sois libres.':'A partir de aquí… sois libres.',S.master,false,()=>{});
+  clearSession(); // sesión terminada (o abandonada): no hay nada que continuar
   const mins=Math.round((Date.now()-S.startTime)/60000);
   document.getElementById('end-stats').innerHTML=
     `<div class="stat">Duración: <b>${mins} min</b></div>
@@ -661,7 +785,7 @@ function endSession(early){
   go('screen-end');
 }
 /* ============ ACTUALIZACIONES ============ */
-const APP_VERSION='1.3';
+const APP_VERSION='2.2';
 function showUpdateBanner(){
   let b=document.getElementById('update-banner');
   if(!b){
@@ -726,8 +850,11 @@ refreshInstallUI();
 // desbloqueo de audio en iOS/Android al primer toque
 document.body.addEventListener('pointerdown',function unlock(){
   if('speechSynthesis' in window){const u=new SpeechSynthesisUtterance(' ');u.volume=0;speechSynthesis.speak(u);}
-  audioEl.src='voz-domina.mp3';
+  audioEl.src='voz-domina.mp3';audioB.src='voz-domina.mp3';
   audioEl.play().then(()=>{audioEl.pause();audioEl.currentTime=0;}).catch(()=>{});
+  audioB.play().then(()=>{audioB.pause();audioB.currentTime=0;}).catch(()=>{});
+  hbEl.play().then(()=>{hbEl.pause();hbEl.currentTime=0;}).catch(()=>{});
+  refreshResumeBtn();
   document.body.removeEventListener('pointerdown',unlock);
 },{once:true});
 </script>
